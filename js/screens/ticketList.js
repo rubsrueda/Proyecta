@@ -160,45 +160,81 @@ async function loadDynamicFields() {
 }
 
 async function guardarTicket() {
-    const { data: { user } } = await supabase.auth.getUser();
-    const customCode = document.getElementById('ticketCustomCode').value.trim();
-    
-    // Valores dinámicos
-    const valoresExtra = {};
-    document.querySelectorAll('.dynamic-input').forEach(input => {
-        valoresExtra[input.dataset.key] = input.value;
-    });
+    try {
+        // 1. Obtener usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            alert('Error: Usuario no autenticado');
+            return;
+        }
 
-    let finalCode = customCode;
-    if (!finalCode) {
-        const year = new Date().getFullYear();
-        const randomCode = Math.floor(Math.random() * 900000) + 100000;
-        finalCode = `TK:${year}-A${randomCode}`;
-    }
+        console.log('[CREAR TICKET] Usuario autenticado:', user.email);
 
-    const { data: userData } = await supabase.from('pr_usuarios').select('id_organizacion_principal').eq('id_usuario', user.id).single();
+        // 2. Obtener id_usuario de pr_usuarios
+        const { data: userData, error: userError } = await supabase
+            .from('pr_usuarios')
+            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .eq('email', user.email)
+            .single();
 
-    const nuevoTicket = {
-        codigo_visual: finalCode,
-        titulo: document.getElementById('ticketTitle').value,
-        descripcion: document.getElementById('ticketDesc').value,
-        resultado_esperado: document.getElementById('ticketExpectedResult').value,
-        prioridad: document.getElementById('ticketPriority').value,
-        estado: 'ABIERTO',
-        id_solicitante: user.id,
-        id_organizacion: userData.id_organizacion_principal,
-        valores_dinamicos: valoresExtra 
-    };
+        if (userError || !userData) {
+            console.error('[CREAR TICKET] Error buscando usuario:', userError);
+            alert('Error: Tu usuario no está registrado en el sistema');
+            return;
+        }
 
-    const { error } = await supabase.from('pr_tickets').insert(nuevoTicket);
+        console.log('[CREAR TICKET] Usuario encontrado:', userData.id_usuario);
 
-    if (error) {
-         if(error.code === '23505') alert("Error: Código duplicado.");
-         else alert('Error: ' + error.message);
-    } else {
-        document.getElementById('modalCreate').style.display = 'none';
-        document.getElementById('formCreateTicket').reset();
-        await cargarTickets(); // Recargar la lista para ver el nuevo
+        // 3. Recopilar datos del formulario
+        const customCode = document.getElementById('ticketCustomCode').value.trim();
+        const valoresExtra = {};
+        document.querySelectorAll('.dynamic-input').forEach(input => {
+            valoresExtra[input.dataset.key] = input.value;
+        });
+
+        // 4. Generar código si no se proporcionó uno
+        let finalCode = customCode;
+        if (!finalCode) {
+            const year = new Date().getFullYear();
+            const randomCode = Math.floor(Math.random() * 900000) + 100000;
+            finalCode = `TK:${year}-A${randomCode}`;
+        }
+
+        // 5. Crear objeto del ticket con el id_usuario correcto
+        const nuevoTicket = {
+            codigo_visual: finalCode,
+            titulo: document.getElementById('ticketTitle').value,
+            descripcion: document.getElementById('ticketDesc').value,
+            resultado_esperado: document.getElementById('ticketExpectedResult').value,
+            prioridad: document.getElementById('ticketPriority').value,
+            estado: 'EN_PROCESO',  // Cambiar de 'ABIERTO' a 'EN_PROCESO'
+            id_solicitante: userData.id_usuario,  // Usar id_usuario de BD, no OAuth ID
+            id_organizacion: userData.id_organizacion_principal,
+            valores_dinamicos: valoresExtra
+        };
+
+        console.log('[CREAR TICKET] Insertando:', nuevoTicket);
+
+        // 6. Insertar en BD
+        const { error } = await supabase.from('pr_tickets').insert(nuevoTicket);
+
+        if (error) {
+            console.error('[CREAR TICKET] Error insertando:', error);
+            if (error.code === '23505') {
+                alert('Error: Código duplicado. Por favor, usa otro código.');
+            } else {
+                alert('Error al crear ticket: ' + error.message);
+            }
+        } else {
+            console.log('[CREAR TICKET] Ticket creado exitosamente');
+            alert('✅ Ticket creado exitosamente');
+            document.getElementById('modalCreate').style.display = 'none';
+            document.getElementById('formCreateTicket').reset();
+            await cargarTickets();  // Recargar lista
+        }
+    } catch(e) {
+        console.error('[CREAR TICKET] Error inesperado:', e);
+        alert('Error inesperado: ' + e.message);
     }
 }
 
