@@ -12,12 +12,25 @@ export async function render(container) {
         return;
     }
 
-    // Obtener usuario de BD
-    const { data: userData } = await supabase
-        .from('pr_usuarios')
-        .select('id_usuario')
-        .eq('email', user.email)
-        .single();
+    // Obtener usuario de BD (intentar múltiples estrategias)
+    let userData = null;
+    const r1 = await supabase.from('pr_usuarios').select('id_usuario').eq('email', user.email).maybeSingle();
+    if (!r1.error && r1.data) {
+        userData = r1.data;
+    } else {
+        const r2 = await supabase.from('pr_usuarios').select('id_usuario').eq('auth_user_id', user.id).maybeSingle();
+        if (!r2.error && r2.data) {
+            userData = r2.data;
+        } else {
+            const r3 = await supabase.from('pr_usuarios').select('id_usuario').eq('id_usuario', user.id).maybeSingle();
+            if (!r3.error && r3.data) userData = r3.data;
+        }
+    }
+
+    if (!userData) {
+        container.innerHTML = '<p style="color:red;">Error: Tu usuario no está registrado en el sistema</p>';
+        return;
+    }
 
     container.innerHTML = `
         <div class="screen-header">

@@ -168,14 +168,46 @@ async function guardarTicket() {
             return;
         }
 
-        console.log('[CREAR TICKET] Usuario autenticado:', user.email);
+        console.log('[CREAR TICKET] Usuario autenticado:', user.email, 'ID:', user.id);
 
-        // 2. Obtener id_usuario de pr_usuarios
-        const { data: userData, error: userError } = await supabase
+        // 2. Obtener id_usuario de pr_usuarios (intentar múltiples estrategias)
+        let userData = null;
+        let userError = null;
+        
+        // Estrategia 1: por email
+        const r1 = await supabase
             .from('pr_usuarios')
             .select('id_usuario, id_organizacion_principal, id_perfil')
             .eq('email', user.email)
-            .single();
+            .maybeSingle();
+        
+        if (!r1.error && r1.data) {
+            userData = r1.data;
+        } else {
+            // Estrategia 2: por auth_user_id
+            const r2 = await supabase
+                .from('pr_usuarios')
+                .select('id_usuario, id_organizacion_principal, id_perfil')
+                .eq('auth_user_id', user.id)
+                .maybeSingle();
+            
+            if (!r2.error && r2.data) {
+                userData = r2.data;
+            } else {
+                // Estrategia 3: id_usuario directo
+                const r3 = await supabase
+                    .from('pr_usuarios')
+                    .select('id_usuario, id_organizacion_principal, id_perfil')
+                    .eq('id_usuario', user.id)
+                    .maybeSingle();
+                
+                if (!r3.error && r3.data) {
+                    userData = r3.data;
+                } else {
+                    userError = r3.error || r2.error || r1.error;
+                }
+            }
+        }
 
         if (userError || !userData) {
             console.error('[CREAR TICKET] Error buscando usuario:', userError);
@@ -247,16 +279,63 @@ async function cargarTickets() {
             return;
         }
 
-        console.log('[TICKETS] Usuario autenticado:', user.email);
+        console.log('[TICKETS] Usuario autenticado:', user.email, 'ID:', user.id);
 
         // 2. Obtener id_usuario de la tabla pr_usuarios
-        const { data: userData, error: userError } = await supabase
+        // Intentamos múltiples estrategias según la estructura de la BD
+        
+        // Estrategia 1: Buscar por email (si existe la columna)
+        let userData = null;
+        let userError = null;
+        
+        const result1 = await supabase
             .from('pr_usuarios')
             .select('id_usuario, id_organizacion_principal, id_perfil')
             .eq('email', user.email)
-            .single();
+            .maybeSingle();
+        
+        if (!result1.error && result1.data) {
+            userData = result1.data;
+            console.log('[TICKETS] Usuario encontrado por email:', userData);
+        } else {
+            console.log('[TICKETS] No se encontró por email, intentando por auth_user_id...');
+            
+            // Estrategia 2: Buscar por auth_user_id (relación directa con OAuth)
+            const result2 = await supabase
+                .from('pr_usuarios')
+                .select('id_usuario, id_organizacion_principal, id_perfil')
+                .eq('auth_user_id', user.id)
+                .maybeSingle();
+            
+            if (!result2.error && result2.data) {
+                userData = result2.data;
+                console.log('[TICKETS] Usuario encontrado por auth_user_id:', userData);
+            } else {
+                console.log('[TICKETS] No se encontró por auth_user_id, intentando por id_usuario directo...');
+                
+                // Estrategia 3: Asumir que id_usuario == user.id de OAuth
+                const result3 = await supabase
+                    .from('pr_usuarios')
+                    .select('id_usuario, id_organizacion_principal, id_perfil')
+                    .eq('id_usuario', user.id)
+                    .maybeSingle();
+                
+                if (!result3.error && result3.data) {
+                    userData = result3.data;
+                    console.log('[TICKETS] Usuario encontrado por id_usuario directo:', userData);
+                } else {
+                    userError = result3.error || result2.error || result1.error;
+                    console.error('[TICKETS] No se pudo encontrar usuario con ninguna estrategia');
+                    console.error('[TICKETS] Errores:', {
+                        por_email: result1.error,
+                        por_auth_user_id: result2.error,
+                        por_id_usuario: result3.error
+                    });
+                }
+            }
+        }
 
-        if (userError) {
+        if (userError || !userData) {
             console.error('[TICKETS] Error buscando usuario:', userError);
             document.querySelector('#ticketsTable tbody').innerHTML = `
                 <tr><td colspan="5" style="color:red; text-align:center;">
