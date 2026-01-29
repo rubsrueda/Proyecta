@@ -428,6 +428,13 @@ async function cargarTickets() {
         row.onclick = () => { if(containerRef) DetailScreen.render(containerRef, t.id_ticket); };
         tbody.appendChild(row);
     });
+    } catch(e) {
+        console.error('[TICKETS] Error inesperado:', e);
+        const tbody = document.querySelector('#ticketsTable tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+        }
+    }
 }
 
 function setupEvents() {
