@@ -12,10 +12,15 @@ export const Router = {
         // --- [NUEVO] Escuchar cambios en la URL (Botones Atrás/Adelante del navegador) ---
         window.onhashchange = () => {
             const hash = window.location.hash.replace('#', '');
-            // Solo navegamos si el hash es un código válido y no es la pantalla actual
-            if (hash && State.screenMap[hash]) {
+            if (!hash) return;
+            
+            // Separar el código de pantalla de los parámetros: #PAN_TICKET_DETALLE/123
+            const [screenCode, param] = hash.split('/');
+            
+            // Solo navegamos si el código es válido
+            if (screenCode && State.screenMap[screenCode]) {
                 // Pasamos false para no volver a empujar al historial (ya estamos ahí)
-                this.navigate(hash, null, false);
+                this.navigate(screenCode, param || null, false);
             }
         };
     },
@@ -53,8 +58,9 @@ export const Router = {
 
         // --- [NUEVO] Actualizar URL Visual ---
         if (updateHistory) {
-            // Esto cambia la URL a .../app.html#PAN_TICKET_LIST
-            window.history.pushState(null, null, `#${screenCode}`);
+            // Esto cambia la URL a .../app.html#PAN_TICKET_DETALLE/123
+            const hashUrl = params ? `#${screenCode}/${params}` : `#${screenCode}`;
+            window.history.pushState(null, null, hashUrl);
         }
 
         // 3. Spinner

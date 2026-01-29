@@ -7,6 +7,19 @@ let currentTicketId = null;
 let currentTicketData = null; // Guardamos datos originales para comparar cambios
 
 export async function render(container, ticketId) {
+    // Validar que se reciba un ticketId
+    if (!ticketId || ticketId === 'null' || ticketId === 'undefined') {
+        container.innerHTML = `
+            <div class="error-card" style="padding:20px; text-align:center;">
+                <h3>⚠️ Ticket no especificado</h3>
+                <p>No se proporcionó un ID de ticket válido.</p>
+                <button id="btnBackToList" class="btn-primary">Volver a Lista de Tickets</button>
+            </div>
+        `;
+        document.getElementById('btnBackToList').onclick = () => TicketsScreen.render(container);
+        return;
+    }
+
     currentTicketId = ticketId;
     container.innerHTML = '<div class="spinner"></div>';
 
