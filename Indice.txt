@@ -1,0 +1,22 @@
+/Proyecta_Web
+  |-- index.html          (Pantalla de Login)
+  |-- app.html            (El Sistema - entraremos aquí tras loguearnos)
+  |-- /css
+      |-- style.css       (Estilos básicos)
+      |-- layout.css       (VERSIÓN MÓVIL OPTIMIZADA)
+
+  |-- /js
+	|-- app.js       
+      	|-- config.js       (Conexión a Supabase)
+      	|-- /auth
+          |-- login.js    (Lógica del botón Google)
+      	|-- /screens
+          |-- messages.js    
+          |-- ticketDetail.js
+          |-- tickets.js
+	|-- /services
+          |-- calendarService.js
+          |-- gmailService.js
+          |-- i18nService.js
+          |-- menuService.js
+
