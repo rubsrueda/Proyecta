@@ -112,3 +112,46 @@ def test_ticket_stats(client):
     assert data['total'] == 2
     assert 'por_status' in data
     assert 'por_prioridad' in data
+
+def test_create_ticket_with_invalid_priority(client):
+    """Test creating a ticket with invalid priority."""
+    response = client.post('/api/tickets', json={
+        'titulo': 'Test Ticket',
+        'descripcion': 'Test Description',
+        'solicitante': 'Test User',
+        'prioridad': 'invalid_priority'
+    })
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+    assert 'Prioridad inválida' in data['error']
+
+def test_create_ticket_with_empty_fields(client):
+    """Test creating a ticket with empty fields."""
+    response = client.post('/api/tickets', json={
+        'titulo': '  ',
+        'descripcion': 'Test Description',
+        'solicitante': 'Test User'
+    })
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+
+def test_update_ticket_with_invalid_status(client):
+    """Test updating a ticket with invalid status."""
+    # Create a test ticket
+    create_response = client.post('/api/tickets', json={
+        'titulo': 'Test Ticket',
+        'descripcion': 'Test Description',
+        'solicitante': 'Test User'
+    })
+    ticket_id = create_response.get_json()['id']
+    
+    # Try to update with invalid status
+    response = client.put(f'/api/tickets/{ticket_id}', json={
+        'status': 'invalid_status'
+    })
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+    assert 'Status inválido' in data['error']

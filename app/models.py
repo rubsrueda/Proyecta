@@ -1,6 +1,6 @@
 """Database models for Proyecta."""
 from app import db
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
 class TicketStatus(PyEnum):
@@ -36,8 +36,8 @@ class Ticket(db.Model):
     prioridad = db.Column(db.String(50), default=TicketPriority.MEDIA.value)
     solicitante = db.Column(db.String(100), nullable=False)
     asignado_a = db.Column(db.String(100))
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
-    fecha_actualizacion = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    fecha_actualizacion = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     fecha_resolucion = db.Column(db.DateTime)
     
     # Relationship with activities
@@ -69,7 +69,7 @@ class Activity(db.Model):
     descripcion = db.Column(db.Text)
     status = db.Column(db.String(50), default=ActivityStatus.PENDIENTE.value)
     asignado_a = db.Column(db.String(100))
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     fecha_inicio = db.Column(db.DateTime)
     fecha_fin = db.Column(db.DateTime)
     horas_estimadas = db.Column(db.Float)

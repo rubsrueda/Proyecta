@@ -1,8 +1,8 @@
 """Ticket routes for Proyecta API."""
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import Ticket, TicketStatus
-from datetime import datetime
+from app.models import Ticket, TicketStatus, TicketPriority
+from datetime import datetime, timezone
 
 bp = Blueprint('tickets', __name__, url_prefix='/api/tickets')
 
@@ -41,11 +41,21 @@ def create_ticket():
     if not data or 'titulo' not in data or 'descripcion' not in data or 'solicitante' not in data:
         return jsonify({'error': 'Se requieren titulo, descripcion y solicitante'}), 400
     
+    # Validate titulo, descripcion, and solicitante are non-empty
+    if not data['titulo'].strip() or not data['descripcion'].strip() or not data['solicitante'].strip():
+        return jsonify({'error': 'Los campos titulo, descripcion y solicitante no pueden estar vacíos'}), 400
+    
+    # Validate prioridad if provided
+    prioridad = data.get('prioridad', 'media')
+    valid_priorities = [p.value for p in TicketPriority]
+    if prioridad not in valid_priorities:
+        return jsonify({'error': f'Prioridad inválida. Valores válidos: {", ".join(valid_priorities)}'}), 400
+    
     ticket = Ticket(
         titulo=data['titulo'],
         descripcion=data['descripcion'],
         solicitante=data['solicitante'],
-        prioridad=data.get('prioridad', 'media'),
+        prioridad=prioridad,
         asignado_a=data.get('asignado_a')
     )
     
@@ -61,15 +71,25 @@ def update_ticket(ticket_id):
     data = request.get_json()
     
     if 'titulo' in data:
+        if not data['titulo'].strip():
+            return jsonify({'error': 'El titulo no puede estar vacío'}), 400
         ticket.titulo = data['titulo']
     if 'descripcion' in data:
+        if not data['descripcion'].strip():
+            return jsonify({'error': 'La descripcion no puede estar vacía'}), 400
         ticket.descripcion = data['descripcion']
     if 'status' in data:
+        valid_statuses = [s.value for s in TicketStatus]
+        if data['status'] not in valid_statuses:
+            return jsonify({'error': f'Status inválido. Valores válidos: {", ".join(valid_statuses)}'}), 400
         ticket.status = data['status']
         if data['status'] in [TicketStatus.RESUELTO.value, TicketStatus.CERRADO.value]:
             if not ticket.fecha_resolucion:
-                ticket.fecha_resolucion = datetime.utcnow()
+                ticket.fecha_resolucion = datetime.now(timezone.utc)
     if 'prioridad' in data:
+        valid_priorities = [p.value for p in TicketPriority]
+        if data['prioridad'] not in valid_priorities:
+            return jsonify({'error': f'Prioridad inválida. Valores válidos: {", ".join(valid_priorities)}'}), 400
         ticket.prioridad = data['prioridad']
     if 'asignado_a' in data:
         ticket.asignado_a = data['asignado_a']

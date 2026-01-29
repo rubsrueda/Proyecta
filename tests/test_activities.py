@@ -178,3 +178,48 @@ def test_ticket_with_activities(client):
     data = response.get_json()
     assert 'actividades' in data
     assert len(data['actividades']) == 2
+
+def test_create_activity_with_empty_title(client):
+    """Test creating an activity with empty title."""
+    # Create a ticket
+    ticket_response = client.post('/api/tickets', json={
+        'titulo': 'Test Ticket',
+        'descripcion': 'Test Description',
+        'solicitante': 'Test User'
+    })
+    ticket_id = ticket_response.get_json()['id']
+    
+    # Try to create activity with empty title
+    response = client.post('/api/activities', json={
+        'ticket_id': ticket_id,
+        'titulo': '  '
+    })
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+
+def test_update_activity_with_invalid_status(client):
+    """Test updating an activity with invalid status."""
+    # Create a ticket
+    ticket_response = client.post('/api/tickets', json={
+        'titulo': 'Test Ticket',
+        'descripcion': 'Test Description',
+        'solicitante': 'Test User'
+    })
+    ticket_id = ticket_response.get_json()['id']
+    
+    # Create activity
+    create_response = client.post('/api/activities', json={
+        'ticket_id': ticket_id,
+        'titulo': 'Test Activity'
+    })
+    activity_id = create_response.get_json()['id']
+    
+    # Try to update with invalid status
+    response = client.put(f'/api/activities/{activity_id}', json={
+        'status': 'invalid_status'
+    })
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+    assert 'Status inválido' in data['error']

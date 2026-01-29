@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models import Activity, Ticket, ActivityStatus
-from datetime import datetime
+from datetime import datetime, timezone
 
 bp = Blueprint('activities', __name__, url_prefix='/api/activities')
 
@@ -39,6 +39,10 @@ def create_activity():
     if not data or 'ticket_id' not in data or 'titulo' not in data:
         return jsonify({'error': 'Se requieren ticket_id y titulo'}), 400
     
+    # Validate titulo is non-empty
+    if not data['titulo'].strip():
+        return jsonify({'error': 'El titulo no puede estar vacío'}), 400
+    
     # Verify ticket exists
     ticket = Ticket.query.get_or_404(data['ticket_id'])
     
@@ -62,15 +66,20 @@ def update_activity(activity_id):
     data = request.get_json()
     
     if 'titulo' in data:
+        if not data['titulo'].strip():
+            return jsonify({'error': 'El titulo no puede estar vacío'}), 400
         activity.titulo = data['titulo']
     if 'descripcion' in data:
         activity.descripcion = data['descripcion']
     if 'status' in data:
+        valid_statuses = [s.value for s in ActivityStatus]
+        if data['status'] not in valid_statuses:
+            return jsonify({'error': f'Status inválido. Valores válidos: {", ".join(valid_statuses)}'}), 400
         activity.status = data['status']
         if data['status'] == ActivityStatus.EN_PROGRESO.value and not activity.fecha_inicio:
-            activity.fecha_inicio = datetime.utcnow()
+            activity.fecha_inicio = datetime.now(timezone.utc)
         elif data['status'] == ActivityStatus.COMPLETADA.value and not activity.fecha_fin:
-            activity.fecha_fin = datetime.utcnow()
+            activity.fecha_fin = datetime.now(timezone.utc)
     if 'asignado_a' in data:
         activity.asignado_a = data['asignado_a']
     if 'horas_estimadas' in data:
