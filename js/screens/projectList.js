@@ -100,7 +100,7 @@ async function loadProjects() {
         // 2. Obtener id_usuario y perfil
         const { data: userData } = await supabase
             .from('pr_usuarios')
-            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
             .eq('email', user.email)
             .single();
 
@@ -116,7 +116,7 @@ async function loadProjects() {
             `);
 
         // 4. Si es cliente (perfil 5), mostrar solo proyectos de su organización
-        if (userData && userData.id_perfil === 5) {
+        if (userData && userData.id_perfil_defecto === 5) {
             query = query.eq('id_organizacion', userData.id_organizacion_principal);
         }
 

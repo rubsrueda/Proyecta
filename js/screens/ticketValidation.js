@@ -88,7 +88,7 @@ async function loadToValidate(userId) {
     // Primero obtener el perfil del usuario
     const { data: userData, error: userError } = await supabase
         .from('pr_usuarios')
-        .select('id_perfil')
+        .select('id_perfil_defecto')
         .eq('id_usuario', userId)
         .single();
     
@@ -100,7 +100,7 @@ async function loadToValidate(userId) {
         return;
     }
     
-    const userProfile = parseInt(userData.id_perfil);
+    const userProfile = parseInt(userData.id_perfil_defecto);
     console.log('[VALIDACION] Perfil convertido a número:', userProfile);
     
     let query = supabase

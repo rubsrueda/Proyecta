@@ -177,7 +177,7 @@ async function guardarTicket() {
         // Estrategia 1: por email
         const r1 = await supabase
             .from('pr_usuarios')
-            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
             .eq('email', user.email)
             .maybeSingle();
         
@@ -187,7 +187,7 @@ async function guardarTicket() {
             // Estrategia 2: por auth_user_id
             const r2 = await supabase
                 .from('pr_usuarios')
-                .select('id_usuario, id_organizacion_principal, id_perfil')
+                .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
                 .eq('auth_user_id', user.id)
                 .maybeSingle();
             
@@ -197,7 +197,7 @@ async function guardarTicket() {
                 // Estrategia 3: id_usuario directo
                 const r3 = await supabase
                     .from('pr_usuarios')
-                    .select('id_usuario, id_organizacion_principal, id_perfil')
+                    .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
                     .eq('id_usuario', user.id)
                     .maybeSingle();
                 
@@ -290,7 +290,7 @@ async function cargarTickets() {
         
         const result1 = await supabase
             .from('pr_usuarios')
-            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
             .eq('email', user.email)
             .maybeSingle();
         
@@ -303,7 +303,7 @@ async function cargarTickets() {
             // Estrategia 2: Buscar por auth_user_id (relación directa con OAuth)
             const result2 = await supabase
                 .from('pr_usuarios')
-                .select('id_usuario, id_organizacion_principal, id_perfil')
+                .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
                 .eq('auth_user_id', user.id)
                 .maybeSingle();
             
@@ -316,7 +316,7 @@ async function cargarTickets() {
                 // Estrategia 3: Asumir que id_usuario == user.id de OAuth
                 const result3 = await supabase
                     .from('pr_usuarios')
-                    .select('id_usuario, id_organizacion_principal, id_perfil')
+                    .select('id_usuario, id_organizacion_principal, id_perfil_defecto')
                     .eq('id_usuario', user.id)
                     .maybeSingle();
                 
@@ -355,8 +355,8 @@ async function cargarTickets() {
 
         console.log('[TICKETS] Usuario encontrado:', {
             id_usuario: userData.id_usuario,
-            id_perfil: userData.id_perfil,
-            tipo_perfil: typeof userData.id_perfil
+            id_perfil_defecto: userData.id_perfil_defecto,
+            tipo_perfil: typeof userData.id_perfil_defecto
         });
 
         // 3. Leer Filtros
@@ -369,8 +369,8 @@ async function cargarTickets() {
             .select('*')
             .order('fecha_creacion', { ascending: false });
 
-        // Convertir id_perfil a número por si viene como string
-        const userIdPerfil = parseInt(userData.id_perfil);
+        // Convertir id_perfil_defecto a número por si viene como string
+        const userIdPerfil = parseInt(userData.id_perfil_defecto);
 
         // Si es cliente (perfil 5) o consultor (perfil 4), mostrar solo sus tickets
         if (userIdPerfil === 5) {
