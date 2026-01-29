@@ -14,15 +14,15 @@ export async function render(container) {
 
     // Obtener usuario de BD (intentar múltiples estrategias)
     let userData = null;
-    const r1 = await supabase.from('pr_usuarios').select('id_usuario').eq('email', user.email).maybeSingle();
+    const r1 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', user.email).maybeSingle();
     if (!r1.error && r1.data) {
         userData = r1.data;
     } else {
-        const r2 = await supabase.from('pr_usuarios').select('id_usuario').eq('auth_user_id', user.id).maybeSingle();
+        const r2 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('auth_user_id', user.id).maybeSingle();
         if (!r2.error && r2.data) {
             userData = r2.data;
         } else {
-            const r3 = await supabase.from('pr_usuarios').select('id_usuario').eq('id_usuario', user.id).maybeSingle();
+            const r3 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('id_usuario', user.id).maybeSingle();
             if (!r3.error && r3.data) userData = r3.data;
         }
     }
@@ -31,6 +31,8 @@ export async function render(container) {
         container.innerHTML = '<p style="color:red;">Error: Tu usuario no está registrado en el sistema</p>';
         return;
     }
+    
+    console.log('[VALIDACION] Usuario encontrado:', userData);
 
     container.innerHTML = `
         <div class="screen-header">
@@ -79,27 +81,19 @@ export async function render(container) {
 
     I18n.traducirPagina(container);
     setupEvents();
-    await loadToValidate(userData.id_usuario);
+    await loadToValidate(userData);
 }
 
-async function loadToValidate(userId) {
-    console.log('[VALIDACION] Iniciando loadToValidate para usuario:', userId);
+async function loadToValidate(userData) {
+    console.log('[VALIDACION] Iniciando loadToValidate para usuario:', userData);
     
-    // Primero obtener el perfil del usuario
-    const { data: userData, error: userError } = await supabase
-        .from('pr_usuarios')
-        .select('id_perfil_defecto')
-        .eq('id_usuario', userId)
-        .single();
-    
-    console.log('[VALIDACION] BD usuario:', userData, userError);
-    
-    if (userError || !userData) {
-        console.error('[VALIDACION] Error obteniendo datos de usuario:', userError);
-        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="color:red">Error: No se encontraron datos de usuario</td></tr>`;
+    if (!userData || !userData.id_perfil_defecto) {
+        console.error('[VALIDACION] Error: userData no tiene perfil');
+        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="color:red">Error: Usuario sin perfil asignado</td></tr>`;
         return;
     }
     
+    const userId = userData.id_usuario;
     const userProfile = parseInt(userData.id_perfil_defecto);
     console.log('[VALIDACION] Perfil convertido a número:', userProfile);
     
@@ -163,10 +157,10 @@ async function loadToValidate(userId) {
                     resultado_final: null // Limpiamos resultado
                 }).eq('id_ticket', t.id_ticket);
                 
-                // Agregar comentario en chat (opcional, por ahora solo recargamos)
+                // Recargar
                 const { data: { user: authUser } } = await supabase.auth.getUser();
-                const r = await supabase.from('pr_usuarios').select('id_usuario').eq('email', authUser.email).maybeSingle();
-                if (r.data) loadToValidate(r.data.id_usuario);
+                const r = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', authUser.email).maybeSingle();
+                if (r.data) loadToValidate(r.data);
             }
         };
 
@@ -223,7 +217,7 @@ function setupEvents() {
         
         // Recargar lista
         const { data: { user: authUser } } = await supabase.auth.getUser();
-        const r = await supabase.from('pr_usuarios').select('id_usuario').eq('email', authUser.email).maybeSingle();
-        if (r.data) loadToValidate(r.data.id_usuario);
+        const r = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', authUser.email).maybeSingle();
+        if (r.data) loadToValidate(r.data);
     };
 }

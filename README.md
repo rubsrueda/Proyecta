@@ -58,7 +58,7 @@ MÓDULO 1: NÚCLEO, SEGURIDAD Y COMPLIANCE (SOX)
 
 
 
-Flujo del Proyecto: 
+Flujo del Ticket: 
 
 
 ABIERTO → EN_PROCESO → RESUELTO → CERRADO
