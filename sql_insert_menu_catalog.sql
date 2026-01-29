@@ -79,12 +79,10 @@ WHERE pan.codigo_pantalla = 'PAN_MENU_CATALOG';
 -- 1. Crea el menú primero:
 INSERT INTO pr_sis_menus (
     codigo_menu,
-    descripcion,
     icono,
     orden
 ) VALUES (
     'CONFIGURACION',
-    'Configuración del Sistema',
     'settings',
     999
 )

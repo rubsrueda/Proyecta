@@ -111,26 +111,31 @@ async function loadFullContext(userId) {
 
 // NAVEGACIÓN (Menú Lateral)
 function setupNavigation() {
-    const menuItems = document.querySelectorAll('#dynamicMenu li');
+    // Los eventos de toggle del menú ya están en menuService.js
+    // Aquí solo manejamos los clics en los items del submenu
     const sidebar = document.querySelector('.sidebar');
     const overlay = document.getElementById('sidebar-overlay');
 
-    menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            menuItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
+    // Delegación de eventos para items del submenu (generados dinámicamente)
+    document.getElementById('dynamicMenu').addEventListener('click', (e) => {
+        const submenuItem = e.target.closest('.submenu-item');
+        
+        if (submenuItem) {
+            // Remover active de todos los items
+            document.querySelectorAll('.submenu-item').forEach(i => i.classList.remove('active'));
+            submenuItem.classList.add('active');
             
-            const screenCode = item.dataset.code; 
+            const screenCode = submenuItem.dataset.code;
             if(screenCode) {
-                // El Router se encarga de cambiar la URL ahora
                 Router.navigate(screenCode);
             }
 
+            // Cerrar sidebar en móvil
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('open');
                 overlay.classList.remove('active');
             }
-        });
+        }
     });
 }
 

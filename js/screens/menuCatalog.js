@@ -348,11 +348,6 @@ function showEditor(menu) {
         </div>
         
         <div class="form-group">
-            <label>Descripción</label>
-            <input type="text" id="menuDesc" value="${menu.descripcion || ''}" placeholder="Descripción breve del menú">
-        </div>
-        
-        <div class="form-group">
             <label>Orden</label>
             <input type="number" id="menuOrder" value="${menu.orden || 1}" min="1">
         </div>
@@ -387,7 +382,6 @@ function showEditor(menu) {
     // Guardar
     document.getElementById('btnSave').onclick = async () => {
         const code = document.getElementById('menuCode').value.trim();
-        const desc = document.getElementById('menuDesc').value.trim();
         const order = parseInt(document.getElementById('menuOrder').value) || 1;
         
         const feedback = document.getElementById('feedbackMsg');
@@ -400,7 +394,6 @@ function showEditor(menu) {
         try {
             const { error } = await supabase.from('pr_sis_menus').update({
                 codigo_menu: code,
-                descripcion: desc,
                 orden: order,
                 icono: selectedIcon
             }).eq('id_menu', editingMenuId);
@@ -434,7 +427,6 @@ function setupEvents() {
             try {
                 const { data, error } = await supabase.from('pr_sis_menus').insert({
                     codigo_menu: code.trim().toUpperCase(),
-                    descripcion: '',
                     orden: 999, // Se especifica al editar
                     icono: 'settings'
                 }).select();
