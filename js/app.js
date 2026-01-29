@@ -86,7 +86,7 @@ async function loadFullContext(userId) {
         .from('pr_usuarios')
         .select(`
             *,
-            pr_sis_perfiles ( nombre_perfil ),
+            pr_sis_perfiles!id_perfil_defecto ( nombre_perfil ),
             pr_organizaciones!id_organizacion_principal ( nombre_comercial, es_interna )
         `)
         .eq('id_usuario', userId)
