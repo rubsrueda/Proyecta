@@ -324,7 +324,7 @@ async function loadToValidate(userProfile, accessLevel) {
     let query = supabase
         .from('pr_tickets')
         .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo)`)
-        .in('estado', ['RESUELTO', 'CERRADO']);
+        .eq('estado', 'RESUELTO');
     
     /**
      * LÓGICA DE NEGOCIO BASADA EN NIVEL DE ACCESO:
