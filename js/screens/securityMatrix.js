@@ -65,6 +65,17 @@ export async function render(container) {
             
             .screen-controls select { font-size: 0.75rem; padding: 2px; border: 1px solid #cbd5e1; border-radius: 4px; }
             .btn-remove { color: #ef4444; cursor: pointer; margin-left: 10px; font-size: 1.2rem; }
+            .btn-remove:hover { opacity: 0.7; }
+            
+            .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+            .modal-content { background: white; border-radius: 8px; width: 90%; max-width: 400px; max-height: 500px; display: flex; flex-direction: column; }
+            .modal-header { padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+            .modal-header h3 { margin: 0; }
+            .close-modal { cursor: pointer; font-size: 1.5rem; color: #64748b; }
+            .close-modal:hover { color: #334155; }
+
+            .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
             @media (max-width: 768px) { .arch-layout { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr 1fr; height: auto; } }
         </style>
@@ -79,16 +90,73 @@ export async function render(container) {
 
 async function loadProfiles() {
     const list = document.getElementById('listProfiles');
-    const { data: profiles } = await supabase.from('pr_sis_perfiles').select('*').order('nombre_perfil');
-    
-    list.innerHTML = '';
-    profiles.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.innerText = p.nombre_perfil;
-        div.onclick = () => selectProfile(p, div);
-        list.appendChild(div);
-    });
+    try {
+        const { data: profiles, error } = await supabase.from('pr_sis_perfiles').select('*').order('nombre_perfil');
+        
+        if (error) {
+            console.error('Error cargando perfiles:', error);
+            list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + error.message + '</p>';
+            return;
+        }
+        
+        list.innerHTML = '';
+        if (!profiles || profiles.length === 0) {
+            list.innerHTML = '<p class="hint">No hay perfiles. Crea uno.</p>';
+            return;
+        }
+        
+        profiles.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <span>${p.nombre_perfil}</span>
+                <span class="btn-remove" title="Eliminar perfil">&times;</span>
+            `;
+            
+            // Evento Seleccionar Perfil
+            div.onclick = (e) => {
+                if(e.target.classList.contains('btn-remove')) return;
+                selectProfile(p, div);
+            };
+            
+            // Evento Eliminar Perfil
+            div.querySelector('.btn-remove').onclick = async (e) => {
+                e.stopPropagation();
+                if(confirm(`¿Eliminar el perfil "${p.nombre_perfil}" y todos sus permisos?`)) {
+                    try {
+                        // 1. Eliminar todos los permisos asociados
+                        const { error: delError } = await supabase.from('pr_sis_permisos_arbol')
+                            .delete()
+                            .eq('id_perfil', p.id_perfil);
+                        
+                        if (delError) throw delError;
+                        
+                        // 2. Eliminar el perfil
+                        const { error: profileError } = await supabase.from('pr_sis_perfiles')
+                            .delete()
+                            .eq('id_perfil', p.id_perfil);
+                        
+                        if (profileError) throw profileError;
+                        
+                        // 3. Recargar
+                        currentProfile = null;
+                        currentMenu = null;
+                        document.getElementById('listMenus').innerHTML = '<p class="hint">Selecciona un perfil</p>';
+                        document.getElementById('listScreens').innerHTML = '<p class="hint">Selecciona un menú</p>';
+                        await loadProfiles();
+                    } catch (err) {
+                        console.error('Error eliminando perfil:', err);
+                        alert('Error al eliminar: ' + err.message);
+                    }
+                }
+            };
+            
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error('Error en loadProfiles:', err);
+        list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + err.message + '</p>';
+    }
 }
 
 async function selectProfile(profile, div) {
@@ -109,66 +177,86 @@ async function loadMenusForProfile(profileId) {
     const list = document.getElementById('listMenus');
     list.innerHTML = '<div class="spinner"></div>';
 
-    // Obtenemos los menús ÚNICOS asignados a este perfil
-    // Supabase no tiene DISTINCT directo fácil en JS, usamos RPC o filtrado manual.
-    // Consulta: Trae todas las filas de este perfil, extrae el menú
-    const { data } = await supabase
-        .from('pr_sis_permisos_arbol')
-        .select(`id_menu, orden_menu, pr_sis_menus (id_menu, codigo_menu, icono)`)
-        .eq('id_perfil', profileId)
-        .order('orden_menu');
+    try {
+        // Obtenemos los menús ÚNICOS asignados a este perfil
+        const { data, error } = await supabase
+            .from('pr_sis_permisos_arbol')
+            .select(`id_menu, orden_menu, pr_sis_menus (id_menu, codigo_menu, icono)`)
+            .eq('id_perfil', profileId)
+            .order('orden_menu');
 
-    list.innerHTML = '';
-    
-    // Filtrar duplicados (porque la tabla tiene 1 fila por pantalla, así que el menú se repite)
-    const uniqueMenus = [];
-    const seen = new Set();
+        if (error) {
+            console.error('Error cargando menús:', error);
+            list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + error.message + '</p>';
+            return;
+        }
 
-    if(data) {
-        data.forEach(row => {
-            if(!seen.has(row.id_menu)) {
-                seen.add(row.id_menu);
-                uniqueMenus.push({
-                    id: row.id_menu,
-                    code: row.pr_sis_menus.codigo_menu,
-                    icon: row.pr_sis_menus.icono
-                });
-            }
-        });
-    }
-
-    if (uniqueMenus.length === 0) {
-        list.innerHTML = '<p class="hint">Perfil vacío. Agrega un menú.</p>';
-        return;
-    }
-
-    uniqueMenus.forEach(m => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.innerHTML = `
-            <span><i class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">${m.icon}</i> ${m.code}</span>
-            <span class="btn-remove" title="Quitar menú">&times;</span>
-        `;
+        list.innerHTML = '';
         
-        // Evento Seleccionar
-        div.onclick = (e) => {
-            if(e.target.classList.contains('btn-remove')) return; // Ignorar clic si es borrar
-            selectMenu(m, div);
-        };
+        // Filtrar duplicados (porque la tabla tiene 1 fila por pantalla, así que el menú se repite)
+        const uniqueMenus = [];
+        const seen = new Set();
 
-        // Evento Borrar Menú (Borra todas las pantallas asociadas a este menú para este perfil)
-        div.querySelector('.btn-remove').onclick = async () => {
-            if(confirm('¿Quitar este menú y todas sus pantallas del perfil?')) {
-                await supabase.from('pr_sis_permisos_arbol')
-                    .delete()
-                    .eq('id_perfil', currentProfile.id_perfil)
-                    .eq('id_menu', m.id);
-                loadMenusForProfile(currentProfile.id_perfil);
-            }
-        };
+        if(data) {
+            data.forEach(row => {
+                if(!seen.has(row.id_menu)) {
+                    seen.add(row.id_menu);
+                    uniqueMenus.push({
+                        id: row.id_menu,
+                        code: row.pr_sis_menus?.codigo_menu || 'SIN_CÓDIGO',
+                        icon: row.pr_sis_menus?.icono || 'settings'
+                    });
+                }
+            });
+        }
 
-        list.appendChild(div);
-    });
+        if (uniqueMenus.length === 0) {
+            list.innerHTML = '<p class="hint">Perfil vacío. Agrega un menú.</p>';
+            return;
+        }
+
+        uniqueMenus.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.innerHTML = `
+                <span><i class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">${m.icon}</i> ${m.code}</span>
+                <span class="btn-remove" title="Quitar menú">&times;</span>
+            `;
+            
+            // Evento Seleccionar
+            div.onclick = (e) => {
+                if(e.target.classList.contains('btn-remove')) return; // Ignorar clic si es borrar
+                selectMenu(m, div);
+            };
+
+            // Evento Borrar Menú (Borra todas las pantallas asociadas a este menú para este perfil)
+            div.querySelector('.btn-remove').onclick = async (e) => {
+                e.stopPropagation();
+                if(confirm('¿Quitar este menú y todas sus pantallas del perfil?')) {
+                    try {
+                        const { error: delError } = await supabase.from('pr_sis_permisos_arbol')
+                            .delete()
+                            .eq('id_perfil', currentProfile.id_perfil)
+                            .eq('id_menu', m.id);
+                        
+                        if (delError) throw delError;
+                        
+                        currentMenu = null;
+                        document.getElementById('listScreens').innerHTML = '<p class="hint">Selecciona un menú</p>';
+                        await loadMenusForProfile(currentProfile.id_perfil);
+                    } catch (err) {
+                        console.error('Error eliminando menú:', err);
+                        alert('Error: ' + err.message);
+                    }
+                }
+            };
+
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error('Error en loadMenusForProfile:', err);
+        list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + err.message + '</p>';
+    }
 }
 
 async function selectMenu(menu, div) {
@@ -185,59 +273,91 @@ async function loadScreensForMenu(profileId, menuId) {
     const list = document.getElementById('listScreens');
     list.innerHTML = '<div class="spinner"></div>';
 
-    const { data } = await supabase
-        .from('pr_sis_permisos_arbol')
-        .select(`
-            id_permiso, id_pantalla, nivel_acceso,
-            pr_sis_pantallas ( clave_nombre )
-        `)
-        .eq('id_perfil', profileId)
-        .eq('id_menu', menuId)
-        .order('orden_pantalla');
+    try {
+        const { data, error } = await supabase
+            .from('pr_sis_permisos_arbol')
+            .select(`
+                id_permiso, id_pantalla, nivel_acceso,
+                pr_sis_pantallas ( clave_nombre )
+            `)
+            .eq('id_perfil', profileId)
+            .eq('id_menu', menuId)
+            .order('orden_pantalla');
 
-    list.innerHTML = '';
+        if (error) {
+            console.error('Error cargando pantallas:', error);
+            list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + error.message + '</p>';
+            return;
+        }
 
-    if (!data || data.length === 0) {
-        list.innerHTML = '<p class="hint">Menú vacío. Agrega pantallas.</p>';
-        return;
+        list.innerHTML = '';
+
+        if (!data || data.length === 0) {
+            list.innerHTML = '<p class="hint">Menú vacío. Agrega pantallas.</p>';
+            return;
+        }
+
+        data.forEach(row => {
+            const div = document.createElement('div');
+            div.className = 'list-item';
+            div.style.cursor = "default"; // No se selecciona, se edita
+            
+            // Selector de Nivel
+            const sel = `
+                <select class="level-changer" data-id="${row.id_permiso}">
+                    <option value="1" ${row.nivel_acceso===1?'selected':''}>Ver</option>
+                    <option value="2" ${row.nivel_acceso===2?'selected':''}>Edit</option>
+                    <option value="3" ${row.nivel_acceso===3?'selected':''}>Full</option>
+                </select>
+            `;
+
+            div.innerHTML = `
+                <span>${row.pr_sis_pantallas?.clave_nombre || 'SIN_NOMBRE'}</span>
+                <div class="screen-controls" style="display:flex; align-items:center; gap:5px;">
+                    ${sel}
+                    <span class="btn-remove" title="Quitar pantalla">&times;</span>
+                </div>
+            `;
+
+            // Evento Cambiar Nivel
+            div.querySelector('select').onchange = async (e) => {
+                try {
+                    const newLevel = e.target.value;
+                    const { error: updateError } = await supabase.from('pr_sis_permisos_arbol')
+                        .update({ nivel_acceso: newLevel })
+                        .eq('id_permiso', row.id_permiso);
+                    
+                    if (updateError) throw updateError;
+                } catch (err) {
+                    console.error('Error actualizando nivel:', err);
+                    alert('Error: ' + err.message);
+                    e.target.value = row.nivel_acceso; // Revertir
+                }
+            };
+
+            // Evento Quitar Pantalla
+            div.querySelector('.btn-remove').onclick = async (e) => {
+                e.stopPropagation();
+                try {
+                    const { error: delError } = await supabase.from('pr_sis_permisos_arbol')
+                        .delete()
+                        .eq('id_permiso', row.id_permiso);
+                    
+                    if (delError) throw delError;
+                    
+                    await loadScreensForMenu(profileId, menuId);
+                } catch (err) {
+                    console.error('Error eliminando pantalla:', err);
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error('Error en loadScreensForMenu:', err);
+        list.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + err.message + '</p>';
     }
-
-    data.forEach(row => {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.style.cursor = "default"; // No se selecciona, se edita
-        
-        // Selector de Nivel
-        const sel = `
-            <select class="level-changer" data-id="${row.id_permiso}">
-                <option value="1" ${row.nivel_acceso===1?'selected':''}>Ver</option>
-                <option value="2" ${row.nivel_acceso===2?'selected':''}>Edit</option>
-                <option value="3" ${row.nivel_acceso===3?'selected':''}>Full</option>
-            </select>
-        `;
-
-        div.innerHTML = `
-            <span>${row.pr_sis_pantallas.clave_nombre}</span>
-            <div class="screen-controls" style="display:flex; align-items:center; gap:5px;">
-                ${sel}
-                <span class="btn-remove" title="Quitar pantalla">&times;</span>
-            </div>
-        `;
-
-        // Evento Cambiar Nivel
-        div.querySelector('select').onchange = async (e) => {
-            const newLevel = e.target.value;
-            await supabase.from('pr_sis_permisos_arbol').update({ nivel_acceso: newLevel }).eq('id_permiso', row.id_permiso);
-        };
-
-        // Evento Quitar Pantalla
-        div.querySelector('.btn-remove').onclick = async () => {
-            await supabase.from('pr_sis_permisos_arbol').delete().eq('id_permiso', row.id_permiso);
-            loadScreensForMenu(profileId, menuId);
-        };
-
-        list.appendChild(div);
-    });
 }
 
 // ======================= LOGICA DE AGREGAR =======================
@@ -249,83 +369,140 @@ function setupEvents() {
 
     // CERRAR MODAL
     document.querySelectorAll('.close-modal').forEach(b => b.onclick = () => modal.style.display = 'none');
+    modal.onclick = (e) => { if(e.target === modal) modal.style.display = 'none'; }; // Cerrar al hacer clic fuera
 
     // AGREGAR PERFIL
     document.getElementById('btnAddProfile').onclick = async () => {
         const name = prompt("Nombre del Nuevo Perfil:");
-        if (name) {
-            await supabase.from('pr_sis_perfiles').insert({ nombre_perfil: name });
-            loadProfiles();
+        if (name && name.trim()) {
+            try {
+                const { data, error } = await supabase.from('pr_sis_perfiles')
+                    .insert({ nombre_perfil: name.trim() })
+                    .select();
+                
+                if (error) throw error;
+                
+                await loadProfiles();
+            } catch (err) {
+                console.error('Error creando perfil:', err);
+                alert('Error: ' + err.message);
+            }
         }
     };
 
     // AGREGAR MENÚ (Abrir catálogo de menús)
     document.getElementById('btnAddMenuToProfile').onclick = async () => {
+        if (!currentProfile) {
+            alert('Selecciona un perfil primero');
+            return;
+        }
+        
         modalTitle.innerText = "Agregar Menú al Perfil";
         modalList.innerHTML = '<div class="spinner"></div>';
         modal.style.display = 'flex';
 
-        // Cargar Catálogo de Menús
-        const { data: allMenus } = await supabase.from('pr_sis_menus').select('*').order('orden');
-        
-        modalList.innerHTML = '';
-        allMenus.forEach(m => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            div.innerHTML = `<span><i class="material-symbols-outlined">${m.icono}</i> ${m.codigo_menu}</span>`;
-            div.onclick = async () => {
-                // Al agregar un menú, técnicamente no agregamos nada a la tabla ARBOL hasta que tenga una pantalla.
-                // PERO para UX, podemos agregar una pantalla "Dummy" o simplemente refrescar la vista.
-                // ESTRATEGIA: No se puede tener menú vacío en esta BD relacional estricta.
-                // SOLUCIÓN UX: Al elegir menú, forzamos a elegir la primera pantalla de inmediato.
-                modal.style.display = 'none';
-                currentMenu = { id: m.id_menu }; // Seleccionamos temporalmente
-                document.getElementById('btnAddScreenToMenu').click(); // Disparamos el siguiente paso
-            };
-            modalList.appendChild(div);
-        });
+        try {
+            // Cargar Catálogo de Menús
+            const { data: allMenus, error } = await supabase.from('pr_sis_menus')
+                .select('*')
+                .order('orden');
+            
+            if (error) throw error;
+            
+            modalList.innerHTML = '';
+            
+            if (!allMenus || allMenus.length === 0) {
+                modalList.innerHTML = '<p class="hint">No hay menús disponibles</p>';
+                return;
+            }
+            
+            allMenus.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `<span><i class="material-symbols-outlined">${m.icono || 'settings'}</i> ${m.codigo_menu}</span>`;
+                div.onclick = async () => {
+                    // Al agregar un menú, técnicamente no agregamos nada a la tabla ARBOL hasta que tenga una pantalla.
+                    // ESTRATEGIA: No se puede tener menú vacío en esta BD relacional estricta.
+                    // SOLUCIÓN UX: Al elegir menú, forzamos a elegir la primera pantalla de inmediato.
+                    modal.style.display = 'none';
+                    currentMenu = { id: m.id_menu }; // Seleccionamos temporalmente
+                    document.getElementById('btnAddScreenToMenu').click(); // Disparamos el siguiente paso
+                };
+                modalList.appendChild(div);
+            });
+        } catch (err) {
+            console.error('Error cargando menús:', err);
+            modalList.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + err.message + '</p>';
+        }
     };
 
     // AGREGAR PANTALLA (Abrir catálogo de pantallas)
     document.getElementById('btnAddScreenToMenu').onclick = async () => {
-        if (!currentMenu) return;
+        if (!currentProfile) {
+            alert('Selecciona un perfil primero');
+            return;
+        }
+        if (!currentMenu) {
+            alert('Selecciona un menú primero');
+            return;
+        }
         
         modalTitle.innerText = "Agregar Pantalla al Menú";
         modalList.innerHTML = '<div class="spinner"></div>';
         modal.style.display = 'flex';
 
-        const { data: allScreens } = await supabase.from('pr_sis_pantallas').select('*').order('clave_nombre');
-        
-        modalList.innerHTML = '';
-        allScreens.forEach(s => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            div.innerText = s.clave_nombre;
+        try {
+            const { data: allScreens, error } = await supabase.from('pr_sis_pantallas')
+                .select('*')
+                .order('clave_nombre');
             
-            div.onclick = async () => {
-                // INSERTAR RELACIÓN
-                const { error } = await supabase.from('pr_sis_permisos_arbol').insert({
-                    id_perfil: currentProfile.id_perfil,
-                    id_menu: currentMenu.id, // O m.id_menu si venimos del paso anterior
-                    id_pantalla: s.id_pantalla,
-                    nivel_acceso: 1 // Por defecto Ver
-                });
+            if (error) throw error;
+            
+            modalList.innerHTML = '';
+            
+            if (!allScreens || allScreens.length === 0) {
+                modalList.innerHTML = '<p class="hint">No hay pantallas disponibles</p>';
+                return;
+            }
+            
+            allScreens.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerText = s.clave_nombre;
+                
+                div.onclick = async () => {
+                    try {
+                        // INSERTAR RELACIÓN
+                        const { error: insertError } = await supabase.from('pr_sis_permisos_arbol').insert({
+                            id_perfil: currentProfile.id_perfil,
+                            id_menu: currentMenu.id,
+                            id_pantalla: s.id_pantalla,
+                            nivel_acceso: 1 // Por defecto Ver
+                        });
 
-                if(error) {
-                    if(error.code === '23505') alert("Esta pantalla ya está en este menú.");
-                    else alert(error.message);
-                } else {
-                    modal.style.display = 'none';
-                    // Si veníamos de agregar menú nuevo, hay que refrescar la columna 2 también
-                    await loadMenusForProfile(currentProfile.id_perfil);
-                    // Refrescar columna 3
-                    await loadScreensForMenu(currentProfile.id_perfil, currentMenu.id);
-                    
-                    // Restaurar visual selection del menú
-                    // (Simplificación: El loadMenus regenera el DOM, habría que buscar el ID y ponerle active)
-                }
-            };
-            modalList.appendChild(div);
-        });
+                        if(insertError) {
+                            if(insertError.code === '23505') {
+                                alert("Esta pantalla ya está en este menú para este perfil.");
+                            } else {
+                                throw insertError;
+                            }
+                        } else {
+                            modal.style.display = 'none';
+                            // Si veníamos de agregar menú nuevo, hay que refrescar la columna 2 también
+                            await loadMenusForProfile(currentProfile.id_perfil);
+                            // Refrescar columna 3
+                            await loadScreensForMenu(currentProfile.id_perfil, currentMenu.id);
+                        }
+                    } catch (err) {
+                        console.error('Error agregando pantalla:', err);
+                        alert('Error: ' + err.message);
+                    }
+                };
+                modalList.appendChild(div);
+            });
+        } catch (err) {
+            console.error('Error cargando pantallas:', err);
+            modalList.innerHTML = '<p style="color: red; padding: 10px;">Error: ' + err.message + '</p>';
+        }
     };
 }
