@@ -1,23 +1,29 @@
 -- ============================================
 -- SQL: Insertar Tickets de Prueba
 -- ============================================
--- Este script crea tickets de ejemplo para testing
--- Asume que ya existen usuarios en pr_usuarios
+-- PREREQUISITOS:
+-- 1. Debe haber al menos 2 usuarios en pr_usuarios (cliente y consultante)
+-- 2. Los usuarios deben estar registrados ANTES de ejecutar este script
+--
+-- INSTRUCCIONES:
+-- 1. Ve a la consola de Supabase
+-- 2. Ve a SQL Editor
+-- 3. Primero ejecuta esta consulta para ver tus usuarios:
+--    SELECT id_usuario, email FROM pr_usuarios LIMIT 10;
+-- 4. Anota los id_usuario de al menos 1 cliente y 1 consultante
+-- 5. En el script abajo, reemplaza los valores:
+--    - CLIENT_ID: ID de un usuario cliente
+--    - CONSULTANT_ID: ID de un usuario consultante
 
--- 1. Verificar que existan usuarios
--- SELECT id_usuario, email, id_perfil FROM pr_usuarios ORDER BY id_usuario;
+-- OPCIÓN A: Insertar tickets con IDs dinámicos (requiere usuarios existentes)
+-- Descomenta y ejecuta esta sección si ya tienes usuarios en pr_usuarios
 
--- 2. OPCIONALMENTE: Crear usuarios de prueba si no existen
--- INSERT INTO pr_usuarios (email, id_perfil, id_organizacion_principal) 
--- VALUES 
---   ('cliente@test.com', 5, 1),
---   ('consultor@test.com', 4, 1)
--- ON CONFLICT (email) DO NOTHING;
-
--- 3. Limpiar tickets anteriores (SOLO SI QUIERES EMPEZAR DE CERO)
--- DELETE FROM pr_tickets WHERE codigo_visual LIKE 'TEST-%';
-
--- 4. Insertar tickets de prueba
+/*
+WITH usuarios AS (
+    SELECT 
+        (SELECT id_usuario FROM pr_usuarios LIMIT 1) as cliente_id,
+        (SELECT id_usuario FROM pr_usuarios LIMIT 1 OFFSET 1) as consultor_id
+)
 INSERT INTO pr_tickets (
     codigo_visual,
     titulo,
@@ -27,12 +33,6 @@ INSERT INTO pr_tickets (
     estado,
     prioridad,
     resultado_esperado
-)
--- Obtener IDs dinámicamente
-WITH usuarios AS (
-    SELECT 
-        (SELECT id_usuario FROM pr_usuarios WHERE id_perfil = 5 LIMIT 1) as cliente_id,
-        (SELECT id_usuario FROM pr_usuarios WHERE id_perfil = 4 LIMIT 1) as consultor_id
 )
 SELECT 
     'TEST-001' as codigo_visual,
@@ -81,38 +81,46 @@ SELECT
     'Feature: Exportar a Excel' as titulo,
     'Agregar opción para exportar listados a Excel' as descripcion,
     u.cliente_id,
-    u.cliente_id + 100,  -- Diferente asignado (si existe)
+    u.cliente_id as id_asignado,
     'EN_PROCESO' as estado,
     'MEDIA' as prioridad,
     'Exportar listados a formato XLSX' as resultado_esperado
 FROM usuarios u
 WHERE u.cliente_id IS NOT NULL
 ON CONFLICT (codigo_visual) DO NOTHING;
+*/
 
--- 5. Verificar que se crearon
-SELECT 
-    id_ticket, 
-    codigo_visual, 
-    titulo, 
-    id_solicitante, 
-    id_asignado, 
-    estado 
-FROM pr_tickets 
-WHERE codigo_visual LIKE 'TEST-%'
-ORDER BY id_ticket DESC;
+-- OPCIÓN B: Insertar tickets con IDs específicos (MÁS SIMPLE)
+-- INSTRUCCIONES:
+-- 1. Reemplaza 1 con el ID de tu usuario cliente
+-- 2. Reemplaza 2 con el ID de tu usuario consultante
+-- 3. Descomenta y ejecuta
 
--- 6. Ver con perfil del solicitante
+INSERT INTO pr_tickets (
+    codigo_visual,
+    titulo,
+    descripcion,
+    id_solicitante,
+    id_asignado,
+    estado,
+    prioridad,
+    resultado_esperado
+)
+VALUES
+    ('TEST-001', 'Bug: Login no funciona con Google', 'Cuando intento login con Google, aparece error 403', 1, 2, 'EN_PROCESO', 'ALTA', 'Login debe funcionar con Google OAuth'),
+    ('TEST-002', 'Mejora: Dashboard lento', 'El dashboard tarda 5 segundos en cargar', 1, 2, 'RESUELTO', 'MEDIA', 'Dashboard debe cargar en menos de 2 segundos'),
+    ('TEST-003', 'Validación: Reportes de proyecto', 'Se necesita generar reportes mensuales', 1, 2, 'RESUELTO', 'BAJA', 'Reportes en PDF y Excel'),
+    ('TEST-004', 'Feature: Exportar a Excel', 'Agregar opción para exportar listados a Excel', 1, 2, 'EN_PROCESO', 'MEDIA', 'Exportar listados a formato XLSX')
+ON CONFLICT (codigo_visual) DO NOTHING;
+
+-- ============================================
+-- VERIFICACIÓN Y DIAGNÓSTICO
+-- ============================================
+
+-- 5. Ver los usuarios que tienes registrados
 SELECT 
-    t.id_ticket,
-    t.codigo_visual,
-    t.titulo,
-    t.estado,
-    u_sol.email as solicitante_email,
-    u_sol.id_perfil as solicitante_perfil,
-    u_asig.email as asignado_email,
-    u_asig.id_perfil as asignado_perfil
-FROM pr_tickets t
-LEFT JOIN pr_usuarios u_sol ON t.id_solicitante = u_sol.id_usuario
-LEFT JOIN pr_usuarios u_asig ON t.id_asignado = u_asig.id_usuario
-WHERE t.codigo_visual LIKE 'TEST-%'
-ORDER BY t.id_ticket;
+    id_usuario, 
+    email
+FROM pr_usuarios 
+ORDER BY id_usuario 
+LIMIT 10;
