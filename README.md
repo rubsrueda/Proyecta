@@ -56,6 +56,19 @@ Vincular: Seleccionar Perfil -> Añadir Menú -> Añadir Pantallas a ese Menú.
 ARQUITECTURA FUNCIONAL EXTENDIDA (V 2.0)
 MÓDULO 1: NÚCLEO, SEGURIDAD Y COMPLIANCE (SOX)
 
+
+
+Flujo del Proyecto: 
+
+
+ABIERTO → EN_PROCESO → RESUELTO → CERRADO
+                ↑                      ↑
+                └──────────────────────┘
+           (Rechazo en validación)   (Aprobación con evaluación)
+
+
+
+
 El cerebro administrativo. Aquí se definen las reglas del juego.
 
 1. Gestión de Políticas de Seguridad (SOX)

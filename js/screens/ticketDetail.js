@@ -64,7 +64,7 @@ export async function render(container, ticketId) {
                         <option value="ABIERTO">ABIERTO</option>
                         <option value="EN_PROCESO">EN PROCESO</option>
                         <option value="RESUELTO">RESUELTO</option>
-                        <option value="CERRADO">CERRADO</option>
+                        <!-- CERRADO solo mediante evaluación del cliente en PAN_VALIDACION_SOP -->
                     </select>
                 </div>
                 <div class="form-inline-group">

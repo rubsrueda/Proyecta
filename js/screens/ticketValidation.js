@@ -108,14 +108,19 @@ async function loadToValidate(userId) {
         .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo)`)
         .eq('estado', 'RESUELTO');
     
-    // Si es cliente (perfil 5), ve tickets que él solicité
-    // Si es consultante (perfil 4), ve tickets que él asignó (los que resolvió)
+    // Perfil 5 = Cliente: Ve tickets que ÉL solicitó (id_solicitante)
+    // Perfil 3 = Gerente/Distribuidor: Ve TODOS los tickets RESUELTOS (para validar en nombre del cliente)
+    // Otros perfiles: No ven nada en esta pantalla
     if (userProfile === 5) {
         console.log('[VALIDACION] Perfil CLIENTE - filtrando por id_solicitante');
         query = query.eq('id_solicitante', userId);
-    } else if (userProfile === 4) {
-        console.log('[VALIDACION] Perfil CONSULTANTE - filtrando por id_asignado');
-        query = query.eq('id_asignado', userId);
+    } else if (userProfile === 3) {
+        console.log('[VALIDACION] Perfil GERENTE/DISTRIBUIDOR - sin filtro (todos los tickets resueltos)');
+        // No aplicamos filtro adicional, ve todos los RESUELTOS
+    } else {
+        console.log('[VALIDACION] Perfil sin acceso a esta pantalla');
+        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">⚠️ No tienes acceso a esta pantalla</td></tr>`;
+        return;
     }
     
     const { data: tickets, error } = await query;
@@ -159,7 +164,9 @@ async function loadToValidate(userId) {
                 }).eq('id_ticket', t.id_ticket);
                 
                 // Agregar comentario en chat (opcional, por ahora solo recargamos)
-                loadToValidate(userId);
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                const r = await supabase.from('pr_usuarios').select('id_usuario').eq('email', authUser.email).maybeSingle();
+                if (r.data) loadToValidate(r.data.id_usuario);
             }
         };
 
@@ -215,7 +222,8 @@ function setupEvents() {
         document.getElementById('modalRate').style.display = 'none';
         
         // Recargar lista
-        const user = State.user;
-        loadToValidate(user.id);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const r = await supabase.from('pr_usuarios').select('id_usuario').eq('email', authUser.email).maybeSingle();
+        if (r.data) loadToValidate(r.data.id_usuario);
     };
 }
