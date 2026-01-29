@@ -50,6 +50,11 @@ flask --app run seed-db
 python run.py
 ```
 
+Para habilitar el modo debug (solo en desarrollo):
+```bash
+FLASK_DEBUG=1 python run.py
+```
+
 El servidor estará disponible en `http://localhost:5000`
 
 ### Endpoints de la API

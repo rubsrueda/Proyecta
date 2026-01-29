@@ -81,4 +81,7 @@ def seed_db():
     print('Database seeded with sample data.')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    # Only enable debug mode if explicitly set via environment variable
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=debug_mode)
