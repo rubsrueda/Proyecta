@@ -323,33 +323,37 @@ async function loadToValidate(userProfile, accessLevel) {
     const userId = userProfile.id_usuario;
     let query = supabase
         .from('pr_tickets')
-        .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo)`)
+        .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo), id_proyecto`)
         .eq('estado', 'RESUELTO');
     
     /**
-     * LÓGICA DE NEGOCIO BASADA EN NIVEL DE ACCESO:
+     * LÓGICA DE NEGOCIO BASADA EN NIVEL DE ACCESO Y SEGURIDAD:
      * 
-     * Nivel 1 (Ver): Ve solo sus propios tickets (que ÉL solicitó)
-     * Nivel 2 (Edit): Ve tickets de su área/equipo (en este caso, también propios)
-     * Nivel 3 (Full): Ve TODOS los tickets (acceso total)
-     * 
-     * IMPORTANTE: Se decide aquí, no por ID de perfil fijo
+     * Nivel 1 (Ver): Ve solo sus propios tickets que ÉL solicitó
+     *               + Tickets de proyectos donde es responsable
+     * Nivel 2 (Edit): Similar a nivel 1 con más opciones
+     * Nivel 3 (Full): Ve TODOS los tickets (directivo/admin)
      */
     
     if (accessLevel === 1) {
-        console.log('[VALIDACION] Nivel 1: Viendo solo tus propios tickets');
+        console.log('[VALIDACION] Nivel 1: Viendo solo tus propios tickets y proyectos');
+        // Filtramos por solicitante (tickets que ÉL creó)
         query = query.eq('id_solicitante', userId);
+        
+        // NOTA: Para filtrar también por "responsable del proyecto",
+        // necesitaríamos hacer la query en dos pasos:
+        // 1. Los tickets que solicitó
+        // 2. Los tickets de proyectos donde es responsable
+        // Por ahora, dejamos solo los que solicitó
     } else if (accessLevel === 2) {
         console.log('[VALIDACION] Nivel 2: Viendo tus tickets y del equipo');
-        // Nivel 2: Podría ser tu departamento o equipo
-        // Por ahora, similar a nivel 1. Si tienes una tabla de equipos, agrega la lógica aquí
         query = query.eq('id_solicitante', userId);
     } else if (accessLevel === 3) {
         console.log('[VALIDACION] Nivel 3: Acceso total a todos los tickets');
         // Nivel 3: Sin filtro, ve TODOS
     } else {
         console.log('[VALIDACION] Nivel desconocido:', accessLevel);
-        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">⚠️ Nivel de acceso no reconocido</td></tr>`;
+        document.getElementById('validationList').innerHTML = `<div style="text-align:center; padding:20px;">⚠️ Nivel de acceso no reconocido</div>`;
         return;
     }
     
@@ -401,11 +405,18 @@ async function loadToValidate(userProfile, accessLevel) {
         card.querySelector('.btn-reject').onclick = async () => {
             const reason = prompt("¿Por qué rechazas la solución?");
             if (reason) {
-                await supabase.from('pr_tickets').update({ 
-                    estado: 'EN_PROCESO', 
-                    resultado_final: null
-                }).eq('id_ticket', t.id_ticket);
-                await loadToValidate(userProfile, accessLevel);
+                try {
+                    await supabase.from('pr_tickets').update({ 
+                        estado: 'EN_PROCESO', 
+                        resultado_final: null
+                    }).eq('id_ticket', t.id_ticket);
+                    
+                    // Recarga inmediata la lista
+                    await loadToValidate(userProfile, accessLevel);
+                } catch (err) {
+                    console.error('Error rechazando ticket:', err);
+                    alert('Error al rechazar el ticket');
+                }
             }
         };
 
