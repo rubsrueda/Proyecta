@@ -3,6 +3,7 @@ import { State } from './core/state.js';
 import { Router } from './core/router.js';
 import * as I18n from './services/i18nService.js';
 import * as MenuService from './services/menuService.js';
+import { APP_CONFIG, validateUserAccess } from './appConfig.js';
 
 // 1. EVENTO DE ARRANQUE
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +39,22 @@ async function initApp() {
     try {
         // Cargar contexto con el ID (sea real o sea el del arquitecto)
         await loadFullContext(userId);
+        
+        // VALIDAR ACCESO A LA APP (ahora es asincrónica)
+        const hasAccess = await validateUserAccess(State.profile);
+        if (!hasAccess) {
+            console.error('[APP] Usuario sin acceso a esta aplicación');
+            alert(APP_CONFIG.ERROR_MESSAGE);
+            await supabase.auth.signOut();
+            localStorage.removeItem('PROYECTA_ARCHITECT_MODE');
+            
+            // Redirigir al fallback o al index
+            const fallbackUrl = APP_CONFIG.FALLBACK_URL || 'index.html';
+            window.location.href = fallbackUrl;
+            return;
+        }
+        
+        console.log('[APP] Usuario validado para', APP_CONFIG.APP_ID);
 
         const workspace = document.getElementById('workspace');
         Router.init(workspace);

@@ -1,5 +1,6 @@
 // js/auth/login.js
 import { supabase, GOOGLE_SCOPES } from '../config.js';
+import { getRedirectUrl } from '../appConfig.js';
 
 const btnGoogle = document.getElementById('btnGoogle');
 const formEmail = document.getElementById('formEmail');
@@ -7,18 +8,18 @@ const formEmail = document.getElementById('formEmail');
 // Opción A: Login con Google (La potente)
 btnGoogle.addEventListener('click', async () => {
     try {
+        const redirectUrl = getRedirectUrl();
+        console.log('[LOGIN] Redirect URL para OAuth:', redirectUrl);
+        
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                // Pedimos los permisos de Calendar y Gmail aquí
                 scopes: GOOGLE_SCOPES,
-                // Esto es vital: 'offline' nos da un Refresh Token para actualizar
-                // los datos del consultor mientras duerme (Tu Caso 4)
                 queryParams: {
                     access_type: 'offline',
                     prompt: 'consent',
                 },
-                redirectTo: window.location.origin + '/app.html' // A dónde va al terminar
+                redirectTo: redirectUrl // Usa configuración centralizada
             },
         });
         if (error) throw error;
