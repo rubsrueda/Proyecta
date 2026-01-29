@@ -70,12 +70,44 @@ export async function render(container) {
 }
 
 async function loadToValidate(userId) {
-    // Tickets que YO solicité y que están RESUELTOS
-    const { data: tickets, error } = await supabase
+    console.log('[VALIDACION] Iniciando loadToValidate para usuario:', userId);
+    
+    // Primero obtener el perfil del usuario
+    const { data: userData, error: userError } = await supabase
+        .from('pr_usuarios')
+        .select('id_perfil')
+        .eq('id_usuario', userId)
+        .single();
+    
+    console.log('[VALIDACION] BD usuario:', userData, userError);
+    
+    if (userError || !userData) {
+        console.error('[VALIDACION] Error obteniendo datos de usuario:', userError);
+        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="color:red">Error: No se encontraron datos de usuario</td></tr>`;
+        return;
+    }
+    
+    const userProfile = parseInt(userData.id_perfil);
+    console.log('[VALIDACION] Perfil convertido a número:', userProfile);
+    
+    let query = supabase
         .from('pr_tickets')
-        .select(`*, asignado:id_asignado(nombre_completo)`)
-        .eq('id_solicitante', userId)
+        .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo)`)
         .eq('estado', 'RESUELTO');
+    
+    // Si es cliente (perfil 5), ve tickets que él solicité
+    // Si es consultante (perfil 4), ve tickets que él asignó (los que resolvió)
+    if (userProfile === 5) {
+        console.log('[VALIDACION] Perfil CLIENTE - filtrando por id_solicitante');
+        query = query.eq('id_solicitante', userId);
+    } else if (userProfile === 4) {
+        console.log('[VALIDACION] Perfil CONSULTANTE - filtrando por id_asignado');
+        query = query.eq('id_asignado', userId);
+    }
+    
+    const { data: tickets, error } = await query;
+    
+    console.log('[VALIDACION] Tickets obtenidos:', tickets?.length || 0, 'Error:', error);
 
     const tbody = document.getElementById('validationBody');
     tbody.innerHTML = '';

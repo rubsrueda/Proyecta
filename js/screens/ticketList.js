@@ -203,62 +203,96 @@ async function guardarTicket() {
 }
 
 async function cargarTickets() {
-    // 1. Obtener usuario autenticado
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        console.error('[TICKETS] Usuario no autenticado');
-        return;
-    }
+    try {
+        // 1. Obtener usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.error('[TICKETS] Usuario no autenticado');
+            return;
+        }
 
-    // 2. Obtener id_usuario de la tabla pr_usuarios
-    const { data: userData, error: userError } = await supabase
-        .from('pr_usuarios')
-        .select('id_usuario, id_organizacion_principal, id_perfil')
-        .eq('email', user.email)
-        .single();
+        console.log('[TICKETS] Usuario autenticado:', user.email);
 
-    if (userError || !userData) {
-        console.error('[TICKETS] No se encontró usuario en BD:', userError);
-        return;
-    }
+        // 2. Obtener id_usuario de la tabla pr_usuarios
+        const { data: userData, error: userError } = await supabase
+            .from('pr_usuarios')
+            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .eq('email', user.email)
+            .single();
 
-    // 3. Leer Filtros
-    const showClosed = document.getElementById('chkShowClosed').checked;
-    const searchText = document.getElementById('searchTicket').value;
+        if (userError) {
+            console.error('[TICKETS] Error buscando usuario:', userError);
+            document.querySelector('#ticketsTable tbody').innerHTML = `
+                <tr><td colspan="5" style="color:red; text-align:center;">
+                    Error: Usuario no encontrado en BD (${user.email})
+                </td></tr>`;
+            return;
+        }
 
-    // 4. Construir query dinámicamente según perfil
-    let query = supabase
-        .from('pr_tickets')
-        .select('*')
-        .order('fecha_creacion', { ascending: false });
+        if (!userData) {
+            console.error('[TICKETS] Usuario no encontrado en BD');
+            document.querySelector('#ticketsTable tbody').innerHTML = `
+                <tr><td colspan="5" style="color:red; text-align:center;">
+                    Error: Tu usuario no está registrado en el sistema
+                </td></tr>`;
+            return;
+        }
 
-    // Si es cliente (perfil 5) o consultor (perfil 4), mostrar solo sus tickets
-    if (userData.id_perfil === 5) {
-        // Cliente: solo tickets que él creó
-        query = query.eq('id_solicitante', userData.id_usuario);
-    } else if (userData.id_perfil === 4) {
-        // Consultor: tickets asignados a él
-        query = query.eq('id_asignado', userData.id_usuario);
-    }
-    // Resto de perfiles (Superadmin, Admin, Gerente): ven todos los tickets
+        console.log('[TICKETS] Usuario encontrado:', {
+            id_usuario: userData.id_usuario,
+            id_perfil: userData.id_perfil,
+            tipo_perfil: typeof userData.id_perfil
+        });
 
-    // 5. Aplicar lógica de filtro
-    if (!showClosed) {
-        query = query.neq('estado', 'CERRADO');
-    }
+        // 3. Leer Filtros
+        const showClosed = document.getElementById('chkShowClosed').checked;
+        const searchText = document.getElementById('searchTicket').value;
 
-    if (searchText) {
-        query = query.ilike('titulo', `%${searchText}%`);
-    }
+        // 4. Construir query dinámicamente según perfil
+        let query = supabase
+            .from('pr_tickets')
+            .select('*')
+            .order('fecha_creacion', { ascending: false });
 
-    const { data: tickets, error } = await query;
+        // Convertir id_perfil a número por si viene como string
+        const userIdPerfil = parseInt(userData.id_perfil);
 
-    const tbody = document.querySelector('#ticketsTable tbody');
-    tbody.innerHTML = '';
+        // Si es cliente (perfil 5) o consultor (perfil 4), mostrar solo sus tickets
+        if (userIdPerfil === 5) {
+            console.log('[TICKETS] Filtrando como CLIENTE - solicitante:', userData.id_usuario);
+            query = query.eq('id_solicitante', userData.id_usuario);
+        } else if (userIdPerfil === 4) {
+            console.log('[TICKETS] Filtrando como CONSULTOR - asignado:', userData.id_usuario);
+            query = query.eq('id_asignado', userData.id_usuario);
+        } else {
+            console.log('[TICKETS] Mostrando TODOS los tickets (perfil ' + userIdPerfil + ')');
+        }
 
-    if (error || !tickets.length) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">No se encontraron tickets.</td></tr>`;
-        return;
+        // 5. Aplicar lógica de filtro
+        if (!showClosed) {
+            query = query.neq('estado', 'CERRADO');
+        }
+
+        if (searchText) {
+            query = query.ilike('titulo', `%${searchText}%`);
+        }
+
+        const { data: tickets, error } = await query;
+
+        const tbody = document.querySelector('#ticketsTable tbody');
+        tbody.innerHTML = '';
+
+        if (error) {
+            console.error('[TICKETS] Error cargando:', error);
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">${error.message}</td></tr>`;
+            return;
+        }
+
+        console.log('[TICKETS] Tickets obtenidos:', tickets?.length || 0);
+
+        if (!tickets || tickets.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">No se encontraron tickets.</td></tr>`;
+            return;
     }
 
     tickets.forEach(t => {

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug - Verificar datos en BD</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        pre { background: #252526; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 10px 0; background: #007acc; color: white; border: none; cursor: pointer; }
+        .error { color: #f48771; }
+        .success { color: #4ec9b0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Diagnóstico de Base de Datos</h1>
+    
+    <button onclick="testConnection()">1. Probar Conexión Supabase</button>
+    <button onclick="checkUser()">2. Verificar Usuario Autenticado</button>
+    <button onclick="checkUserInDB()">3. Verificar Usuario en PR_USUARIOS</button>
+    <button onclick="countTickets()">4. Contar Tickets en PR_TICKETS</button>
+    <button onclick="listTickets()">5. Listar Todos los Tickets</button>
+    <button onclick="listUsers()">6. Listar Usuarios Registrados</button>
+    <button onclick="checkTableStructure()">7. Verificar Estructura de Tablas</button>
+    <button onclick="clearLogs()">Limpiar Logs</button>
+    
+    <hr>
+    <h3>📋 Resultados:</h3>
+    <pre id="output"></pre>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        
+        const SUPABASE_URL = 'https://wwafeitljxnlvmjtwsjz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YWZlaXRsanhubHZtanR3c2p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDA0OTEsImV4cCI6MjA4MzExNjQ5MX0.kmXNqJX5MuOAajgdNLeQYhxl0_jSp7i8VD6d2AFaCWs';
+        
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        window.log = function(msg) {
+            const out = document.getElementById('output');
+            out.textContent += msg + '\n';
+            console.log(msg);
+        };
+        
+        window.logError = function(msg, error) {
+            window.log(`❌ ${msg}`);
+            if (error) window.log(JSON.stringify(error, null, 2));
+        };
+        
+        window.logSuccess = function(msg) {
+            window.log(`✅ ${msg}`);
+        };
+        
+        window.testConnection = async function() {
+            window.log('\n=== TEST 1: Conexión Supabase ===');
+            try {
+                const { data, error } = await supabase.from('pr_usuarios').select('count');
+                if (error) throw error;
+                window.logSuccess('Conexión exitosa a Supabase');
+            } catch(e) {
+                window.logError('No se pudo conectar a Supabase', e);
+            }
+        };
+        
+        window.checkUser = async function() {
+            window.log('\n=== TEST 2: Usuario Autenticado ===');
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) throw error;
+                if (!user) {
+                    window.log('❌ No hay usuario autenticado. Por favor, inicia sesión primero.');
+                } else {
+                    window.logSuccess(`Usuario autenticado: ${user.email}`);
+                    window.log(`ID: ${user.id}`);
+                }
+            } catch(e) {
+                window.logError('Error verificando usuario autenticado', e);
+            }
+        };
+        
+        window.checkUserInDB = async function() {
+            window.log('\n=== TEST 3: Verificar Usuario en PR_USUARIOS ===');
+            try {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (!user) {
+                    window.log('❌ No hay usuario autenticado');
+                    return;
+                }
+                
+                const { data, error } = await supabase
+                    .from('pr_usuarios')
+                    .select('*')
+                    .eq('email', user.email)
+                    .single();
+                
+                if (error) {
+                    window.logError(`Error buscando usuario ${user.email}`, error);
+                    return;
+                }
+                
+                if (!data) {
+                    window.log(`❌ Usuario ${user.email} NO existe en pr_usuarios`);
+                    return;
+                }
+                
+                window.logSuccess(`Usuario encontrado en pr_usuarios:`);
+                window.log(JSON.stringify(data, null, 2));
+            } catch(e) {
+                window.logError('Error en checkUserInDB', e);
+            }
+        };
+        
+        window.countTickets = async function() {
+            window.log('\n=== TEST 4: Contar Tickets ===');
+            try {
+                const { count, error } = await supabase
+                    .from('pr_tickets')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (error) throw error;
+                window.logSuccess(`Total de tickets en BD: ${count}`);
+            } catch(e) {
+                window.logError('Error contando tickets', e);
+            }
+        };
+        
+        window.listTickets = async function() {
+            window.log('\n=== TEST 5: Listar Todos los Tickets ===');
+            try {
+                const { data, error } = await supabase
+                    .from('pr_tickets')
+                    .select('id_ticket, codigo_visual, titulo, id_solicitante, id_asignado, estado')
+                    .order('id_ticket', { ascending: true })
+                    .limit(20);
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    window.log('❌ No hay tickets en la base de datos');
+                    return;
+                }
+                
+                window.logSuccess(`Primeros ${data.length} tickets:`);
+                window.log(JSON.stringify(data, null, 2));
+            } catch(e) {
+                window.logError('Error listando tickets', e);
+            }
+        };
+        
+        window.listUsers = async function() {
+            window.log('\n=== TEST 6: Listar Usuarios ===');
+            try {
+                const { data, error } = await supabase
+                    .from('pr_usuarios')
+                    .select('id_usuario, email, id_perfil, id_organizacion_principal')
+                    .order('id_usuario', { ascending: true });
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    window.log('❌ No hay usuarios registrados');
+                    return;
+                }
+                
+                window.logSuccess(`Total de usuarios: ${data.length}`);
+                window.log(JSON.stringify(data, null, 2));
+            } catch(e) {
+                window.logError('Error listando usuarios', e);
+            }
+        };
+        
+        window.checkTableStructure = async function() {
+            window.log('\n=== TEST 7: Estructura de Tablas ===');
+            try {
+                // Intentar obtener información de las tablas
+                window.log('Verificando estructura de pr_tickets...');
+                const { data: tickets, error: ticketsError } = await supabase
+                    .from('pr_tickets')
+                    .select('*')
+                    .limit(1);
+                
+                if (ticketsError) {
+                    window.logError('Error en pr_tickets', ticketsError);
+                } else if (tickets && tickets.length > 0) {
+                    window.logSuccess('Columnas de pr_tickets:');
+                    window.log(Object.keys(tickets[0]).join(', '));
+                } else {
+                    window.log('pr_tickets está vacía, no se pueden ver columnas');
+                }
+                
+                window.log('\nVerificando estructura de pr_usuarios...');
+                const { data: users, error: usersError } = await supabase
+                    .from('pr_usuarios')
+                    .select('*')
+                    .limit(1);
+                
+                if (usersError) {
+                    window.logError('Error en pr_usuarios', usersError);
+                } else if (users && users.length > 0) {
+                    window.logSuccess('Columnas de pr_usuarios:');
+                    window.log(Object.keys(users[0]).join(', '));
+                } else {
+                    window.log('pr_usuarios está vacía, no se pueden ver columnas');
+                }
+            } catch(e) {
+                window.logError('Error verificando estructura', e);
+            }
+        };
+        
+        window.clearLogs = function() {
+            document.getElementById('output').textContent = '';
+        };
+    </script>
+</body>
+</html>
