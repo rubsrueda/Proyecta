@@ -1,4 +1,5 @@
 // js/appConfig.js - Configuración específica de la aplicación
+import { supabase } from './config.js';
 
 /**
  * Configuración de identificación de aplicación
@@ -8,8 +9,6 @@
  * 2. Configura ALLOWED_ORGANIZATIONS con los IDs de org permitidos
  * 3. O usa VALIDATION_MODE: 'none' para desactivar validación
  */
-
-// js/appConfig.js - Configuración específica de la aplicación
 
 /**
  * Configuración de identificación de aplicación
@@ -62,7 +61,7 @@ export async function validateUserAccess(userProfile) {
     if (APP_CONFIG.VALIDATION_MODE === 'database') {
         try {
             // Buscar en la tabla pr_usuarios si este usuario existe
-            const { data, error } = await window.supabaseClient
+            const { data, error } = await supabase
                 .from(APP_CONFIG.USER_TABLE)
                 .select('id_usuario')
                 .eq('email', userProfile.email)

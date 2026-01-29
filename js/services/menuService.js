@@ -9,21 +9,32 @@ export async function cargarMenu(idPerfil) {
         .from('pr_sis_permisos_arbol')
         .select(`
             id_menu,
-            orden_menu,
-            orden_pantalla,
-            pr_sis_menus ( codigo_menu, icono ),
+            id_pantalla,
+            pr_sis_menus ( codigo_menu, icono, orden ),
             pr_sis_pantallas ( codigo_pantalla, clave_nombre )
         `)
-        .eq('id_perfil', idPerfil)
-        .order('orden_menu')
-        .order('orden_pantalla');
+        .eq('id_perfil', idPerfil);
 
-    if (error) { console.error(error); return []; }
+    if (error) { 
+        console.error('[MENU] Error cargando permisos:', error); 
+        return []; 
+    }
+    
+    if (!data || data.length === 0) {
+        console.warn('[MENU] No se encontraron permisos para perfil:', idPerfil);
+        return [];
+    }
 
     // CORREGIDO: Procesar para agrupar TODAS las pantallas por menú
     const menuMap = new Map();
 
     data.forEach(row => {
+        // Validar que los datos existen
+        if (!row.pr_sis_menus || !row.pr_sis_pantallas) {
+            console.warn('[MENU] Registro incompleto:', row);
+            return;
+        }
+        
         const menuId = row.id_menu;
         
         if (!menuMap.has(menuId)) {
@@ -31,6 +42,7 @@ export async function cargarMenu(idPerfil) {
                 id: menuId,
                 codigo_menu: row.pr_sis_menus.codigo_menu,
                 icono: row.pr_sis_menus.icono,
+                orden: row.pr_sis_menus.orden,
                 pantallas: [] // Array para múltiples pantallas
             });
         }
@@ -42,7 +54,10 @@ export async function cargarMenu(idPerfil) {
         });
     });
 
-    return Array.from(menuMap.values());
+    // Ordenar menús por el campo orden
+    const menusOrdenados = Array.from(menuMap.values()).sort((a, b) => a.orden - b.orden);
+    
+    return menusOrdenados;
 }
 
 export function renderizarMenu(items, containerId) {
