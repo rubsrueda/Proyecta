@@ -50,22 +50,29 @@ export function renderizarMenu(items, containerId) {
     if(!container) return;
     container.innerHTML = ''; 
 
+    console.log('[MENU] Renderizando', items.length, 'menús');
+
     items.forEach(item => {
+        console.log('[MENU]', item.codigo_menu, '- Pantallas:', item.pantallas.length);
+        
         // Crear el elemento del menú principal
         const menuLi = document.createElement('li');
         menuLi.className = 'menu-item';
-        menuLi.innerHTML = `
-            <div class="menu-header">
-                <span class="material-symbols-outlined">${item.icono}</span>
-                <span>${I18n.t(item.codigo_menu) || item.codigo_menu}</span>
-                <span class="material-symbols-outlined menu-arrow">expand_more</span>
-            </div>
+        
+        // Header del menú
+        const menuHeader = document.createElement('div');
+        menuHeader.className = 'menu-header';
+        menuHeader.innerHTML = `
+            <span class="material-symbols-outlined">${item.icono}</span>
+            <span>${I18n.t(item.codigo_menu) || item.codigo_menu}</span>
+            <span class="material-symbols-outlined menu-arrow">expand_more</span>
         `;
+        
+        menuLi.appendChild(menuHeader);
         
         // Crear submenu con pantallas
         const submenu = document.createElement('ul');
         submenu.className = 'submenu';
-        submenu.style.display = 'none'; // Oculto por defecto
         
         item.pantallas.forEach(pantalla => {
             const pantallaLi = document.createElement('li');
@@ -78,11 +85,24 @@ export function renderizarMenu(items, containerId) {
         menuLi.appendChild(submenu);
         
         // Toggle del submenu
-        menuLi.querySelector('.menu-header').addEventListener('click', (e) => {
+        menuHeader.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isOpen = submenu.style.display === 'block';
+            
+            // Cerrar otros menús
+            document.querySelectorAll('.menu-item').forEach(otherMenu => {
+                if (otherMenu !== menuLi && otherMenu.classList.contains('open')) {
+                    otherMenu.classList.remove('open');
+                    const otherSubmenu = otherMenu.querySelector('.submenu');
+                    if (otherSubmenu) otherSubmenu.style.display = 'none';
+                }
+            });
+            
+            // Toggle este menú
+            const isOpen = menuLi.classList.contains('open');
+            menuLi.classList.toggle('open');
             submenu.style.display = isOpen ? 'none' : 'block';
-            menuLi.classList.toggle('open', !isOpen);
+            
+            console.log('[MENU] Toggle', item.codigo_menu, '- Abierto:', !isOpen);
         });
         
         container.appendChild(menuLi);

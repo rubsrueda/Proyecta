@@ -48,25 +48,50 @@ body { margin: 0; background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
 }
 
 .sidebar-menu { flex: 1; padding-top: 20px; overflow-y: auto; }
-.sidebar-menu ul { list-style: none; padding: 0; margin: 0; }
+.sidebar-menu > ul { list-style: none; padding: 0; margin: 0; }
 
 /* MENÚ PRINCIPAL */
 .sidebar-menu .menu-item {
-    color: #94a3b8;
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 .sidebar-menu .menu-header {
-    padding: 12px 24px; display: flex; align-items: center; gap: 12px;
-    cursor: pointer; transition: background 0.2s;
-    justify-content: space-between;
+    padding: 12px 24px; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    cursor: pointer; 
+    transition: background 0.2s;
+    color: #94a3b8;
+    position: relative;
 }
-.sidebar-menu .menu-header:hover { background-color: #334155; color: white; }
-.sidebar-menu .menu-item.open .menu-header { background-color: #334155; color: white; }
+.sidebar-menu .menu-header > span:first-child {
+    flex-shrink: 0;
+}
+.sidebar-menu .menu-header > span:nth-child(2) {
+    flex: 1;
+}
+.sidebar-menu .menu-header:hover { 
+    background-color: #334155; 
+    color: white; 
+}
+.sidebar-menu .menu-header:hover .menu-arrow { 
+    color: white; 
+}
+.sidebar-menu .menu-item.open > .menu-header { 
+    background-color: #334155; 
+    color: white; 
+}
 .sidebar-menu .menu-arrow { 
     transition: transform 0.2s; 
     font-size: 18px;
+    flex-shrink: 0;
+    color: #94a3b8;
 }
 .sidebar-menu .menu-item.open .menu-arrow { 
-    transform: rotate(180deg); 
+    transform: rotate(180deg);
+    color: white;
 }
 
 /* SUBMENÚ */
@@ -76,7 +101,6 @@ body { margin: 0; background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
     margin: 0;
     background-color: #0f172a;
     overflow: hidden;
-    transition: max-height 0.3s ease;
 }
 .sidebar-menu .submenu-item {
     padding: 10px 24px 10px 56px;
@@ -86,6 +110,7 @@ body { margin: 0; background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
     transition: background 0.2s;
     color: #94a3b8;
     font-size: 0.9rem;
+    list-style: none;
 }
 .sidebar-menu .submenu-item:hover { 
     background-color: #1e293b; 
@@ -95,6 +120,7 @@ body { margin: 0; background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
     background-color: #1e293b; 
     color: white; 
     border-left: 3px solid var(--primary);
+    padding-left: 53px;
 }
 
 .sidebar-footer { padding: 20px; border-top: 1px solid #334155; }
