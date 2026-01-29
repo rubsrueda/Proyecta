@@ -1,0 +1,176 @@
+import { supabase } from './config.js';
+import { State } from './core/state.js';
+import { Router } from './core/router.js';
+import * as I18n from './services/i18nService.js';
+import * as MenuService from './services/menuService.js';
+
+// 1. EVENTO DE ARRANQUE
+document.addEventListener('DOMContentLoaded', () => {
+    setupMobileMenu();
+    initApp();
+});
+
+// LÓGICA DEL SISTEMA
+async function initApp() {
+    const loadingScreen = document.getElementById('loading-screen');
+    const appContent = document.getElementById('app-content');
+
+    // 1. VERIFICAR MODO ARQUITECTO
+    const isArchitect = localStorage.getItem('PROYECTA_ARCHITECT_MODE') === 'true';
+    let userId = null;
+
+    if (isArchitect) {
+        console.warn("⚠️ MODO ARQUITECTO ACTIVADO");
+        // Usamos el ID fijo que creamos en SQL
+        userId = '00000000-0000-0000-0000-000000000000';
+        
+        // Simulamos un objeto usuario en el State
+        State.user = { id: userId, email: 'architect@sys' };
+    
+    } else {
+        // 2. Si no es arquitecto, verificar sesión REAL de Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { window.location.href = 'index.html'; return; }
+        State.user = session.user;
+        userId = session.user.id;
+    }
+
+    try {
+        // Cargar contexto con el ID (sea real o sea el del arquitecto)
+        await loadFullContext(userId);
+
+        const workspace = document.getElementById('workspace');
+        Router.init(workspace);
+
+        await I18n.cargarDiccionario(State.profile.codigo_idioma || 'es');
+
+        const menuItems = await MenuService.cargarMenu(State.profile.id_perfil_defecto);
+        MenuService.renderizarMenu(menuItems, 'dynamicMenu');
+        
+        setupNavigation();
+        setupUI();
+
+        loadingScreen.style.display = 'none';
+        appContent.style.display = 'flex';
+
+    } catch (error) {
+        console.error("Error Fatal:", error);
+        // Si falla el modo arquitecto, lo desactivamos para no buclear
+        if (isArchitect) localStorage.removeItem('PROYECTA_ARCHITECT_MODE');
+        alert("Error iniciando sistema: " + error.message);
+        window.location.href = 'index.html';
+    }
+}
+
+// CARGA DE CONTEXTO
+async function loadFullContext(userId) {
+    // 1. Cargar Usuario y su Perfil
+    let { data: usuario, error } = await supabase
+        .from('pr_usuarios')
+        .select(`
+            *,
+            pr_sis_perfiles ( nombre_perfil ),
+            pr_organizaciones!id_organizacion_principal ( nombre_comercial, es_interna )
+        `)
+        .eq('id_usuario', userId)
+        .single();
+
+    if (error || !usuario) throw new Error("No se pudo cargar el usuario.");
+    
+    State.profile = usuario;
+    State.organization = usuario.pr_organizaciones;
+
+    // 2. CARGAR PERMISOS (NUEVA TABLA ARBOL)
+    // Ahora leemos pr_sis_permisos_arbol
+    const { data: permisos, error: errPerm } = await supabase
+        .from('pr_sis_permisos_arbol')
+        .select(`
+            nivel_acceso,
+            pr_sis_pantallas ( codigo_pantalla, ruta_archivo )
+        `)
+        .eq('id_perfil', usuario.id_perfil_defecto);
+
+    if (errPerm) throw new Error("Error cargando matriz de seguridad.");
+
+    // 3. Llenar el Mapa de Seguridad en Memoria
+    State.screenMap = {}; // Limpiar anterior
+    
+    if (permisos) {
+        permisos.forEach(p => {
+            if (p.pr_sis_pantallas) {
+                State.screenMap[p.pr_sis_pantallas.codigo_pantalla] = {
+                    level: p.nivel_acceso,
+                    file: p.pr_sis_pantallas.ruta_archivo
+                };
+            }
+        });
+    }
+    
+    console.log("[STATE] Mapa de seguridad cargado:", Object.keys(State.screenMap).length, "pantallas.");
+}
+
+// NAVEGACIÓN (Menú Lateral)
+function setupNavigation() {
+    const menuItems = document.querySelectorAll('#dynamicMenu li');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+            menuItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            
+            const screenCode = item.dataset.code; 
+            if(screenCode) {
+                // El Router se encarga de cambiar la URL ahora
+                Router.navigate(screenCode);
+            }
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+}
+
+// UI GENERAL
+function setupUI() {
+    document.getElementById('user-name').innerText = State.profile.nombre_completo;
+    document.getElementById('user-role').innerText = State.profile.pr_sis_perfiles?.nombre_perfil || "Perfil";
+
+    if (State.organization) {
+        document.getElementById('org-name').innerText = State.organization.nombre_comercial;
+        const orgType = document.getElementById('org-type');
+        const isInterna = State.organization.es_interna;
+        orgType.innerText = isInterna ? "INTERNA" : "CLIENTE";
+        orgType.style.background = isInterna ? "#dbeafe" : "#dcfce7";
+        orgType.style.color = isInterna ? "#1e40af" : "#166534";
+    }
+
+    document.getElementById('btnLogout').onclick = async () => {
+        State.clear();
+        await supabase.auth.signOut();
+        window.location.href = 'index.html';
+    };
+    I18n.traducirPagina();
+}
+
+function setupMobileMenu() {
+    const btnToggle = document.querySelector('.toggle-menu'); 
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (btnToggle && sidebar && overlay) {
+        btnToggle.onclick = (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        };
+
+        overlay.onclick = () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        };
+    }
+}

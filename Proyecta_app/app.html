@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecta - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/layout.css"> <!-- Nuevo archivo CSS -->
+    <!-- Iconos Material Symbols (Google) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+</head>
+<body>
+
+    <!-- Pantalla de Carga -->
+    <div id="loading-screen" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Iniciando Proyecta...</p>
+    </div>
+
+    <!-- Contenedor Principal (Oculto al inicio) -->
+    <div id="app-content" class="main-layout" style="display: none;">
+        
+        <!-- 1. BARRA LATERAL (SIDEBAR) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-circle">P</div>
+                <h2>PROYECTA</h2>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <!-- El menú se generará dinámicamente aquí -->
+                <ul id="dynamicMenu"></ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="btnLogout" class="btn-logout">
+                    <span class="material-symbols-outlined">logout</span> 
+                    <span data-i18n="btn_logout">Salir</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 2. CONTENIDO DERECHO -->
+        <div class="content-wrapper">
+            
+            <!-- Barra Superior (Topbar) -->
+            <header class="topbar">
+                <div class="toggle-menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </div>
+
+                <!-- HE QUITADO EL display:none Y PUESTO TEXTO FIJO PARA PROBAR -->
+                <div class="org-badge" id="org-display" style="display: flex;">
+                    <!-- El icono se oculta en móvil por CSS, eso está bien -->
+                    <span class="material-symbols-outlined">domain</span>
+                    
+                    <!-- Aquí debe salir el nombre -->
+                    <span id="org-name" style="font-weight:700; color:#1e293b;">(Sin Org)</span>
+                    
+                    <!-- El badge interna se oculta en móvil por CSS -->
+                    <span id="org-type" class="badge-internal"></span>
+                </div>
+
+                <div class="right-actions">
+                    <select id="langSelector" class="lang-select">
+                        <option value="es">🇪🇸 ES</option>
+                        <option value="en">🇺🇸 EN</option>
+                        <option value="zh">🇨🇳 ZH</option>
+                    </select>
+
+                    <div class="user-info">
+                        <div class="text-info">
+                            <span id="user-name" class="name">Cargando...</span>
+                            <span id="user-role" class="role">...</span>
+                        </div>
+                        <div class="avatar-circle">
+                            <span class="material-symbols-outlined">person</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Área de Trabajo (Donde se pintarán las pantallas) -->
+            <main id="workspace" class="workspace">
+                <div class="welcome-card">
+                    <!-- ANTES: <h1>Hola de nuevo.</h1> -->
+                    <!-- AHORA: -->
+                    <h1 data-i18n="welcome_title">Loading...</h1>
+                    
+                    <!-- ANTES: <p>Selecciona una opción...</p> -->
+                    <!-- AHORA: -->
+                    <p data-i18n="welcome_sub">Loading...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+<!-- Fondo oscuro para cuando abres el menú en móvil -->
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+</html>
