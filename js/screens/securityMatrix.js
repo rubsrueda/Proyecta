@@ -412,7 +412,7 @@ function setupEvents() {
             modalList.innerHTML = '';
             
             if (!allMenus || allMenus.length === 0) {
-                modalList.innerHTML = '<p class="hint">No hay menús disponibles</p>';
+                modalList.innerHTML = '<p class="hint">No hay menús disponibles. <br><br>Ve a <strong>Mantenimiento de Menús</strong> para crear algunos.</p>';
                 return;
             }
             
@@ -421,12 +421,54 @@ function setupEvents() {
                 div.className = 'list-item';
                 div.innerHTML = `<span><i class="material-symbols-outlined">${m.icono || 'settings'}</i> ${m.codigo_menu}</span>`;
                 div.onclick = async () => {
-                    // Al agregar un menú, técnicamente no agregamos nada a la tabla ARBOL hasta que tenga una pantalla.
-                    // ESTRATEGIA: No se puede tener menú vacío en esta BD relacional estricta.
-                    // SOLUCIÓN UX: Al elegir menú, forzamos a elegir la primera pantalla de inmediato.
-                    modal.style.display = 'none';
-                    currentMenu = { id: m.id_menu }; // Seleccionamos temporalmente
-                    document.getElementById('btnAddScreenToMenu').click(); // Disparamos el siguiente paso
+                    try {
+                        // NUEVA LÓGICA: Insertar un registro en pr_sis_permisos_arbol 
+                        // con una pantalla "default" para que el menú aparezca
+                        // Primero, obtener una pantalla por defecto (la primera)
+                        const { data: defaultScreen, error: screenError } = await supabase
+                            .from('pr_sis_pantallas')
+                            .select('id_pantalla')
+                            .order('clave_nombre')
+                            .limit(1)
+                            .single();
+                        
+                        if (screenError || !defaultScreen) {
+                            alert('Error: No hay pantallas disponibles. Crea al menos una pantalla en el catálogo.');
+                            return;
+                        }
+                        
+                        // Insertar la relación con una pantalla por defecto
+                        const { error: insertError } = await supabase.from('pr_sis_permisos_arbol').insert({
+                            id_perfil: currentProfile.id_perfil,
+                            id_menu: m.id_menu,
+                            id_pantalla: defaultScreen.id_pantalla,
+                            nivel_acceso: 1 // Por defecto Ver
+                        });
+
+                        if(insertError) {
+                            if(insertError.code === '23505') {
+                                alert("Este menú ya está asignado a este perfil.");
+                            } else {
+                                throw insertError;
+                            }
+                        } else {
+                            modal.style.display = 'none';
+                            // Refrescar ambas columnas
+                            await loadMenusForProfile(currentProfile.id_perfil);
+                            // Seleccionar automáticamente el menú recién agregado
+                            setTimeout(() => {
+                                const menuDivs = document.querySelectorAll('#listMenus .list-item');
+                                const lastMenuDiv = menuDivs[menuDivs.length - 1];
+                                if (lastMenuDiv) {
+                                    const menuObj = { id: m.id_menu, code: m.codigo_menu, icon: m.icono };
+                                    selectMenu(menuObj, lastMenuDiv);
+                                }
+                            }, 100);
+                        }
+                    } catch (err) {
+                        console.error('Error al asignar menú:', err);
+                        alert('Error: ' + err.message);
+                    }
                 };
                 modalList.appendChild(div);
             });

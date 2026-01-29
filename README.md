@@ -392,3 +392,5 @@ absences.js	PAN_AUSENCIAS	Solicitud y aprobación de vacaciones.
 Archivo	Código BD	Función
 reportSupport.js	PAN_REP_SOPORTE	Gráficas de SLAs y volúmenes.
 reportProjects.js	PAN_REP_PROYECTOS	Curvas S y avance financiero.
+
+http://localhost:8000/index.html
