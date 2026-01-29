@@ -6,7 +6,18 @@ import { Utils } from '../core/utils.js';
 import * as I18n from '../services/i18nService.js';
 
 export async function render(container) {
-    const user = State.user;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        container.innerHTML = '<p>Error: Usuario no autenticado</p>';
+        return;
+    }
+
+    // Obtener usuario de BD
+    const { data: userData } = await supabase
+        .from('pr_usuarios')
+        .select('id_usuario')
+        .eq('email', user.email)
+        .single();
 
     container.innerHTML = `
         <div class="screen-header">
@@ -55,7 +66,7 @@ export async function render(container) {
 
     I18n.traducirPagina(container);
     setupEvents();
-    await loadToValidate(user.id);
+    await loadToValidate(userData.id_usuario);
 }
 
 async function loadToValidate(userId) {

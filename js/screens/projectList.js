@@ -89,60 +89,90 @@ export async function render(container) {
 }
 
 async function loadProjects() {
-    const filterStatus = document.getElementById('filterStatus').value;
-    const searchText = document.getElementById('searchProject').value.toLowerCase();
+    try {
+        // 1. Obtener usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            console.error('[PROYECTOS] Usuario no autenticado');
+            return;
+        }
 
-    // Consulta con JOIN a Organización y Contratos (si existen)
-    let query = supabase
-        .from('pr_proyectos')
-        .select(`
-            *,
-            pr_organizaciones ( nombre_comercial )
-        `)
-        .order('fecha_inicio', { ascending: false });
+        // 2. Obtener id_usuario y perfil
+        const { data: userData } = await supabase
+            .from('pr_usuarios')
+            .select('id_usuario, id_organizacion_principal, id_perfil')
+            .eq('email', user.email)
+            .single();
 
-    if (filterStatus !== 'TODOS') {
-        query = query.eq('estado', filterStatus);
+        const filterStatus = document.getElementById('filterStatus').value;
+        const searchText = document.getElementById('searchProject').value.toLowerCase();
+
+        // 3. Consulta con JOIN a Organización
+        let query = supabase
+            .from('pr_proyectos')
+            .select(`
+                *,
+                pr_organizaciones ( nombre_comercial )
+            `);
+
+        // 4. Si es cliente (perfil 5), mostrar solo proyectos de su organización
+        if (userData && userData.id_perfil === 5) {
+            query = query.eq('id_organizacion', userData.id_organizacion_principal);
+        }
+
+        query = query.order('fecha_inicio', { ascending: false });
+
+        if (filterStatus !== 'TODOS') {
+            query = query.eq('estado', filterStatus);
+        }
+
+        const { data: projects, error } = await query;
+        const grid = document.getElementById('projectsGrid');
+        grid.innerHTML = '';
+
+        if (error) {
+            grid.innerHTML = `<p style="color:red">Error cargando proyectos: ${error.message}</p>`;
+            return;
+        }
+
+        if (projects.length === 0) {
+            grid.innerHTML = `<p style="color:#64748b; grid-column: 1/-1; text-align:center;">No hay proyectos encontrados.</p>`;
+            return;
+        }
+
+        // Filtrado JS para búsqueda de texto
+        const filtered = projects.filter(p => 
+            p.nombre.toLowerCase().includes(searchText) || 
+            (p.pr_organizaciones?.nombre_comercial || '').toLowerCase().includes(searchText)
+        );
+
+        filtered.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'card project-card';
+            card.style.cursor = 'pointer';
+            card.style.transition = 'transform 0.2s';
+            card.onmouseover = () => card.style.transform = 'translateY(-3px)';
+            card.onmouseout = () => card.style.transform = 'translateY(0)';
+
+            // Calcular barra de progreso
+            const total = p.bolsa_horas_vendidas || 100;
+            const consumido = 0;
+            const porcentaje = Math.min(100, Math.round((consumido / total) * 100));
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
+                    <span class="badge ${p.metodologia === 'AGILE' ? 'EN_PROCESO' : 'ABIERTO'}" style="font-size:0.7rem;">
+                        ${p.metodologia || 'WATERFALL'}
+                    </span>
+                    <span style="font-size:0.8rem; color:#64748b;">${Utils.formatDate(p.fecha_inicio)}</span>
+                </div>
+                
+                <h3 style="margin:0 0 5px 0; color:#1e293b;">${p.nombre}</h3>
+                <div style="font-size:0.85rem; color:#64748b; font-weight:600; margin-bottom:15px;">`
+        });
+    } catch (err) {
+        console.error('[PROYECTOS] Error:', err);
     }
-
-    const { data: projects, error } = await query;
-    const grid = document.getElementById('projectsGrid');
-    grid.innerHTML = '';
-
-    if (error) {
-        grid.innerHTML = `<p style="color:red">Error cargando proyectos: ${error.message}</p>`;
-        return;
-    }
-
-    if (projects.length === 0) {
-        grid.innerHTML = `<p style="color:#64748b; grid-column: 1/-1; text-align:center;">No hay proyectos encontrados.</p>`;
-        return;
-    }
-
-    // Filtrado JS para búsqueda de texto (más rápido que llamar a BD cada tecla)
-    const filtered = projects.filter(p => 
-        p.nombre.toLowerCase().includes(searchText) || 
-        (p.pr_organizaciones?.nombre_comercial || '').toLowerCase().includes(searchText)
-    );
-
-    filtered.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'card project-card';
-        card.style.cursor = 'pointer';
-        card.style.transition = 'transform 0.2s';
-        card.onmouseover = () => card.style.transform = 'translateY(-3px)';
-        card.onmouseout = () => card.style.transform = 'translateY(0)';
-
-        // Calcular barra de progreso (Simulada por ahora o basada en horas si existen)
-        const total = p.bolsa_horas_vendidas || 100;
-        const consumido = 0; // TODO: Calcular esto sumando tareas/actividades reales
-        const porcentaje = Math.min(100, Math.round((consumido / total) * 100));
-
-        card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
-                <span class="badge ${p.metodologia === 'AGILE' ? 'EN_PROCESO' : 'ABIERTO'}" style="font-size:0.7rem;">
-                    ${p.metodologia || 'WATERFALL'}
-                </span>
                 <span style="font-size:0.8rem; color:#64748b;">${Utils.formatDate(p.fecha_inicio)}</span>
             </div>
             

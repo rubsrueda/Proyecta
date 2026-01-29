@@ -1,4 +1,5 @@
 import { supabase } from '../config.js';
+import { State } from '../core/state.js';
 import * as DetailScreen from './ticketDetail.js';
 import * as I18n from '../services/i18nService.js';
 
@@ -202,16 +203,46 @@ async function guardarTicket() {
 }
 
 async function cargarTickets() {
-    // 1. Leer Filtros
+    // 1. Obtener usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        console.error('[TICKETS] Usuario no autenticado');
+        return;
+    }
+
+    // 2. Obtener id_usuario de la tabla pr_usuarios
+    const { data: userData, error: userError } = await supabase
+        .from('pr_usuarios')
+        .select('id_usuario, id_organizacion_principal, id_perfil')
+        .eq('email', user.email)
+        .single();
+
+    if (userError || !userData) {
+        console.error('[TICKETS] No se encontró usuario en BD:', userError);
+        return;
+    }
+
+    // 3. Leer Filtros
     const showClosed = document.getElementById('chkShowClosed').checked;
     const searchText = document.getElementById('searchTicket').value;
 
+    // 4. Construir query dinámicamente según perfil
     let query = supabase
         .from('pr_tickets')
         .select('*')
         .order('fecha_creacion', { ascending: false });
 
-    // 2. Aplicar lógica de filtro (CORRECCIÓN SOLICITADA)
+    // Si es cliente (perfil 5) o consultor (perfil 4), mostrar solo sus tickets
+    if (userData.id_perfil === 5) {
+        // Cliente: solo tickets que él creó
+        query = query.eq('id_solicitante', userData.id_usuario);
+    } else if (userData.id_perfil === 4) {
+        // Consultor: tickets asignados a él
+        query = query.eq('id_asignado', userData.id_usuario);
+    }
+    // Resto de perfiles (Superadmin, Admin, Gerente): ven todos los tickets
+
+    // 5. Aplicar lógica de filtro
     if (!showClosed) {
         query = query.neq('estado', 'CERRADO');
     }
