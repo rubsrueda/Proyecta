@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Menu</title>
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <style>
+        body { margin: 0; background: #1e293b; }
+        .test-container { width: 260px; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <nav class="sidebar-menu">
+            <ul id="dynamicMenu">
+                <!-- Menú de prueba 1 -->
+                <li class="menu-item">
+                    <div class="menu-header">
+                        <span class="material-symbols-outlined">attach_money</span>
+                        <span>FINANZAS</span>
+                        <span class="material-symbols-outlined menu-arrow">expand_more</span>
+                    </div>
+                    <ul class="submenu" style="display: none;">
+                        <li class="submenu-item">
+                            <span>Contratos</span>
+                        </li>
+                        <li class="submenu-item">
+                            <span>Tarifas</span>
+                        </li>
+                    </ul>
+                </li>
+                
+                <!-- Menú de prueba 2 -->
+                <li class="menu-item">
+                    <div class="menu-header">
+                        <span class="material-symbols-outlined">settings</span>
+                        <span>CONFIGURACION</span>
+                        <span class="material-symbols-outlined menu-arrow">expand_more</span>
+                    </div>
+                    <ul class="submenu" style="display: none;">
+                        <li class="submenu-item">
+                            <span>Perfiles</span>
+                        </li>
+                        <li class="submenu-item">
+                            <span>Menús</span>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    
+    <script>
+        // Toggle simple
+        document.querySelectorAll('.menu-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const menuItem = header.parentElement;
+                const submenu = menuItem.querySelector('.submenu');
+                const isOpen = submenu.style.display === 'block';
+                
+                // Cerrar todos
+                document.querySelectorAll('.submenu').forEach(s => s.style.display = 'none');
+                document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('open'));
+                
+                // Abrir este si estaba cerrado
+                if (!isOpen) {
+                    submenu.style.display = 'block';
+                    menuItem.classList.add('open');
+                }
+                
+                console.log('Click en', header.querySelector('span:nth-child(2)').textContent, '- Display:', submenu.style.display);
+            });
+        });
+    </script>
+</body>
+</html>
