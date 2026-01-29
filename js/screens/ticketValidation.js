@@ -44,10 +44,6 @@ export async function render(container) {
         <!-- MODAL DETALLES DEL TICKET -->
         <div id="modalDetails" class="modal-overlay">
             <div class="modal-content" style="max-width: 90%; max-height: 90vh; overflow-y: auto;">
-                <div class="modal-header">
-                    <h3 id="detailTitle">Detalles del Ticket</h3>
-                    <span class="close-modal" id="closeDetails">&times;</span>
-                </div>
                 <div id="detailContent" style="padding:20px;">
                     <!-- Contenido dinámico -->
                 </div>
@@ -482,7 +478,16 @@ function showDetailModal(ticket) {
             ` : ''}
         </div>
     `;
-    document.getElementById('modalDetails').classList.add('show');
+    
+    const modalDetails = document.getElementById('modalDetails');
+    modalDetails.classList.add('show');
+    
+    // Cerrar al hacer clic en el overlay
+    modalDetails.onclick = (e) => {
+        if (e.target === modalDetails) {
+            modalDetails.classList.remove('show');
+        }
+    };
 }
 
 function openRateModal(ticket) {
@@ -502,13 +507,16 @@ function updateStars(val) {
 }
 
 function setupEvents() {
-    // Cerrar modal de detalles
-    document.getElementById('closeDetails').onclick = () => 
-        document.getElementById('modalDetails').classList.remove('show');
-
-    // Cerrar modal de calificación (X)
+    // Cerrar modal de calificación (X o click en overlay)
+    const modalRate = document.getElementById('modalRate');
     document.querySelector('.close-modal').onclick = () => 
-        document.getElementById('modalRate').classList.remove('show');
+        modalRate.classList.remove('show');
+    
+    modalRate.onclick = (e) => {
+        if (e.target === modalRate) {
+            modalRate.classList.remove('show');
+        }
+    };
 
     // Estrellas de calificación
     document.querySelectorAll('#starsContainer span').forEach(s => {
@@ -529,7 +537,7 @@ function setupEvents() {
         // 2. Cerrar Ticket
         await supabase.from('pr_tickets').update({ estado: 'CERRADO' }).eq('id_ticket', currentRateTicket.id_ticket);
 
-        document.getElementById('modalRate').classList.remove('show');
+        modalRate.classList.remove('show');
         
         // Recargar lista (usar State.profile y el nivel de acceso actual)
         const accessLevel = Security.getLevel('PAN_VALIDACION_SOP');
