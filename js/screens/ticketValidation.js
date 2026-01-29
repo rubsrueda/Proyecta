@@ -2,6 +2,7 @@
 import { supabase } from '../config.js';
 import { Router } from '../core/router.js';
 import { State } from '../core/state.js';
+import { Security } from '../core/security.js';
 import { Utils } from '../core/utils.js';
 import * as I18n from '../services/i18nService.js';
 
@@ -12,27 +13,20 @@ export async function render(container) {
         return;
     }
 
-    // Obtener usuario de BD (intentar múltiples estrategias)
-    let userData = null;
-    const r1 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', user.email).maybeSingle();
-    if (!r1.error && r1.data) {
-        userData = r1.data;
-    } else {
-        const r2 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('auth_user_id', user.id).maybeSingle();
-        if (!r2.error && r2.data) {
-            userData = r2.data;
-        } else {
-            const r3 = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('id_usuario', user.id).maybeSingle();
-            if (!r3.error && r3.data) userData = r3.data;
-        }
-    }
-
-    if (!userData) {
-        container.innerHTML = '<p style="color:red;">Error: Tu usuario no está registrado en el sistema</p>';
+    // 1. VERIFICAR ACCESO BASADO EN MATRIZ DE SEGURIDAD
+    const screenCode = 'PAN_VALIDACION_SOP';
+    const accessLevel = Security.getLevel(screenCode);
+    
+    if (!Security.canAccess(screenCode)) {
+        container.innerHTML = `
+            <div class="error-card" style="padding:20px; text-align:center;">
+                <h3>⛔ Acceso Denegado</h3>
+                <p>Tu perfil no tiene permisos para acceder a esta pantalla.</p>
+            </div>`;
         return;
     }
-    
-    console.log('[VALIDACION] Usuario encontrado:', userData);
+
+    console.log(`[VALIDACION] Acceso permitido. Nivel: ${accessLevel}`);
 
     container.innerHTML = `
         <div class="screen-header">
@@ -81,39 +75,42 @@ export async function render(container) {
 
     I18n.traducirPagina(container);
     setupEvents();
-    await loadToValidate(userData);
+    await loadToValidate(State.profile, accessLevel);
 }
 
-async function loadToValidate(userData) {
-    console.log('[VALIDACION] Iniciando loadToValidate para usuario:', userData);
+async function loadToValidate(userProfile, accessLevel) {
+    console.log('[VALIDACION] Iniciando loadToValidate con nivel de acceso:', accessLevel);
     
-    if (!userData || !userData.id_perfil_defecto) {
-        console.error('[VALIDACION] Error: userData no tiene perfil');
-        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="color:red">Error: Usuario sin perfil asignado</td></tr>`;
-        return;
-    }
-    
-    const userId = userData.id_usuario;
-    const userProfile = parseInt(userData.id_perfil_defecto);
-    console.log('[VALIDACION] Perfil convertido a número:', userProfile);
-    
+    const userId = userProfile.id_usuario;
     let query = supabase
         .from('pr_tickets')
         .select(`*, asignado:id_asignado(nombre_completo), solicitante:id_solicitante(nombre_completo)`)
-        .eq('estado', 'RESUELTO');
+        .in('estado', ['RESUELTO', 'CERRADO']);
     
-    // Perfil 5 = Cliente: Ve tickets que ÉL solicitó (id_solicitante)
-    // Perfil 3 = Gerente/Distribuidor: Ve TODOS los tickets RESUELTOS (para validar en nombre del cliente)
-    // Otros perfiles: No ven nada en esta pantalla
-    if (userProfile === 5) {
-        console.log('[VALIDACION] Perfil CLIENTE - filtrando por id_solicitante');
+    /**
+     * LÓGICA DE NEGOCIO BASADA EN NIVEL DE ACCESO:
+     * 
+     * Nivel 1 (Ver): Ve solo sus propios tickets (que ÉL solicitó)
+     * Nivel 2 (Edit): Ve tickets de su área/equipo (en este caso, también propios)
+     * Nivel 3 (Full): Ve TODOS los tickets (acceso total)
+     * 
+     * IMPORTANTE: Se decide aquí, no por ID de perfil fijo
+     */
+    
+    if (accessLevel === 1) {
+        console.log('[VALIDACION] Nivel 1: Viendo solo tus propios tickets');
         query = query.eq('id_solicitante', userId);
-    } else if (userProfile === 3) {
-        console.log('[VALIDACION] Perfil GERENTE/DISTRIBUIDOR - sin filtro (todos los tickets resueltos)');
-        // No aplicamos filtro adicional, ve todos los RESUELTOS
+    } else if (accessLevel === 2) {
+        console.log('[VALIDACION] Nivel 2: Viendo tus tickets y del equipo');
+        // Nivel 2: Podría ser tu departamento o equipo
+        // Por ahora, similar a nivel 1. Si tienes una tabla de equipos, agrega la lógica aquí
+        query = query.eq('id_solicitante', userId);
+    } else if (accessLevel === 3) {
+        console.log('[VALIDACION] Nivel 3: Acceso total a todos los tickets');
+        // Nivel 3: Sin filtro, ve TODOS
     } else {
-        console.log('[VALIDACION] Perfil sin acceso a esta pantalla');
-        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">⚠️ No tienes acceso a esta pantalla</td></tr>`;
+        console.log('[VALIDACION] Nivel desconocido:', accessLevel);
+        document.getElementById('validationBody').innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">⚠️ Nivel de acceso no reconocido</td></tr>`;
         return;
     }
     
@@ -124,7 +121,10 @@ async function loadToValidate(userData) {
     const tbody = document.getElementById('validationBody');
     tbody.innerHTML = '';
 
-    if (error) { tbody.innerHTML = `<tr><td colspan="4" style="color:red">${error.message}</td></tr>`; return; }
+    if (error) { 
+        tbody.innerHTML = `<tr><td colspan="4" style="color:red">${error.message}</td></tr>`; 
+        return; 
+    }
 
     if (tickets.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px;">🎉 Todo al día. No tienes validaciones pendientes.</td></tr>`;
@@ -158,9 +158,7 @@ async function loadToValidate(userData) {
                 }).eq('id_ticket', t.id_ticket);
                 
                 // Recargar
-                const { data: { user: authUser } } = await supabase.auth.getUser();
-                const r = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', authUser.email).maybeSingle();
-                if (r.data) loadToValidate(r.data);
+                await loadToValidate(userProfile, accessLevel);
             }
         };
 
@@ -215,9 +213,8 @@ function setupEvents() {
 
         document.getElementById('modalRate').style.display = 'none';
         
-        // Recargar lista
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        const r = await supabase.from('pr_usuarios').select('id_usuario, id_perfil_defecto').eq('email', authUser.email).maybeSingle();
-        if (r.data) loadToValidate(r.data);
+        // Recargar lista (usar State.profile y el nivel de acceso actual)
+        const accessLevel = Security.getLevel('PAN_VALIDACION_SOP');
+        await loadToValidate(State.profile, accessLevel);
     };
 }
