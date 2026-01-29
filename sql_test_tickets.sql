@@ -26,8 +26,6 @@ INSERT INTO pr_tickets (
     id_asignado,
     estado,
     prioridad,
-    fecha_creacion,
-    fecha_estimada,
     resultado_esperado
 )
 -- Obtener IDs dinámicamente
@@ -44,8 +42,6 @@ SELECT
     u.consultor_id as id_asignado,
     'EN_PROCESO' as estado,
     'ALTA' as prioridad,
-    NOW() as fecha_creacion,
-    NOW() + INTERVAL '2 days' as fecha_estimada,
     'Login debe funcionar con Google OAuth' as resultado_esperado
 FROM usuarios u
 WHERE u.cliente_id IS NOT NULL AND u.consultor_id IS NOT NULL
@@ -60,8 +56,6 @@ SELECT
     u.consultor_id,
     'RESUELTO' as estado,
     'MEDIA' as prioridad,
-    NOW() - INTERVAL '5 days' as fecha_creacion,
-    NOW() - INTERVAL '3 days' as fecha_estimada,
     'Dashboard debe cargar en menos de 2 segundos' as resultado_esperado
 FROM usuarios u
 WHERE u.cliente_id IS NOT NULL AND u.consultor_id IS NOT NULL
@@ -76,8 +70,6 @@ SELECT
     u.consultor_id,
     'RESUELTO' as estado,
     'BAJA' as prioridad,
-    NOW() - INTERVAL '10 days' as fecha_creacion,
-    NOW() - INTERVAL '7 days' as fecha_estimada,
     'Reportes en PDF y Excel' as resultado_esperado
 FROM usuarios u
 WHERE u.cliente_id IS NOT NULL AND u.consultor_id IS NOT NULL
@@ -92,8 +84,6 @@ SELECT
     u.cliente_id + 100,  -- Diferente asignado (si existe)
     'EN_PROCESO' as estado,
     'MEDIA' as prioridad,
-    NOW() - INTERVAL '1 day' as fecha_creacion,
-    NOW() + INTERVAL '5 days' as fecha_estimada,
     'Exportar listados a formato XLSX' as resultado_esperado
 FROM usuarios u
 WHERE u.cliente_id IS NOT NULL
