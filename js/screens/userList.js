@@ -261,6 +261,7 @@ function openModal(user = null) {
 function setupEvents() {
     const modal = document.getElementById('modalUser');
     const form = document.getElementById('formUser');
+    let isSaving = false;
 
     document.getElementById('searchUser').addEventListener('keyup', loadUsers);
     document.getElementById('btnNewUser').onclick = () => openModal(null);
@@ -268,6 +269,10 @@ function setupEvents() {
 
     form.onsubmit = async (e) => {
         e.preventDefault();
+        if (isSaving) return;
+        isSaving = true;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
         
         const userId = document.getElementById('userId').value;
         const mainOrg = document.getElementById('userOrg').value;
@@ -285,39 +290,52 @@ function setupEvents() {
         let finalId = userId;
         let error;
 
-        if (userId) {
-            const res = await supabase.from('pr_usuarios').update(userData).eq('id_usuario', userId);
-            error = res.error;
-        } else {
-            const res = await supabase.from('pr_usuarios').insert(userData).select().single();
-            error = res.error;
-            if (res.data) {
-                finalId = res.data.id_usuario;
-            } else if (error && /null value in column\s+"id_usuario"/i.test(error.message)) {
-                const candidates = await getUserIdCandidates();
-                for (const candidate of candidates) {
-                    const retry = await supabase
-                        .from('pr_usuarios')
-                        .insert({ ...userData, id_usuario: candidate })
-                        .select()
-                        .single();
+        try {
+            if (userId) {
+                const res = await supabase.from('pr_usuarios').update(userData).eq('id_usuario', userId);
+                error = res.error;
+            } else {
+                // Evitar duplicados por email
+                const exists = await supabase
+                    .from('pr_usuarios')
+                    .select('id_usuario')
+                    .eq('email', userData.email)
+                    .maybeSingle();
 
-                    if (!retry.error && retry.data) {
-                        error = null;
-                        finalId = retry.data.id_usuario;
-                        break;
-                    }
+                if (exists.data) {
+                    alert('Ya existe un usuario con ese email.');
+                    return;
+                }
 
-                    error = retry.error;
+                const res = await supabase.from('pr_usuarios').insert(userData).select().single();
+                error = res.error;
+                if (res.data) {
+                    finalId = res.data.id_usuario;
+                } else if (error && /null value in column\s+"id_usuario"/i.test(error.message)) {
+                    const candidates = await getUserIdCandidates();
+                    for (const candidate of candidates) {
+                        const retry = await supabase
+                            .from('pr_usuarios')
+                            .insert({ ...userData, id_usuario: candidate })
+                            .select()
+                            .single();
 
-                    if (!error || !/(invalid input syntax|duplicate key|violates unique constraint)/i.test(error.message)) {
-                        break;
+                        if (!retry.error && retry.data) {
+                            error = null;
+                            finalId = retry.data.id_usuario;
+                            break;
+                        }
+
+                        error = retry.error;
+
+                        if (!error || !/(invalid input syntax|duplicate key|violates unique constraint)/i.test(error.message)) {
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        if(error) { alert("Error: " + error.message); return; }
+            if(error) { alert("Error: " + error.message); return; }
 
         // B. Guardar Accesos de Datos (Detalle)
         // 1. Borrar anteriores
@@ -342,7 +360,11 @@ function setupEvents() {
             if(errAccess) console.error("Error guardando accesos:", errAccess);
         }
 
-        modal.style.display = 'none';
-        loadUsers();
+            modal.style.display = 'none';
+            loadUsers();
+        } finally {
+            isSaving = false;
+            if (submitBtn) submitBtn.disabled = false;
+        }
     };
 }
