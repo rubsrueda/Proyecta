@@ -20,7 +20,7 @@ export async function render(container, datosPrellenados = null) {
             
             <!-- NUEVO FILTRO: Checkbox para ver cerrados -->
             <label style="display:flex; align-items:center; gap:5px; font-size:0.9rem; cursor:pointer; background:white; padding:5px 10px; border:1px solid #e2e8f0; border-radius:4px;">
-                <input type="checkbox" id="chkShowClosed"> Mostrar Cerrados
+                 <input type="checkbox" id="chkShowClosed"> Mostrar Resueltos/Cerrados
             </label>
         </div>
 
@@ -385,7 +385,8 @@ async function cargarTickets() {
 
         // 5. Aplicar lógica de filtro
         if (!showClosed) {
-            query = query.neq('estado', 'CERRADO');
+              // Excluir tanto RESUELTOS como CERRADOS
+              query = query.not('estado', 'in', '(RESUELTO,CERRADO)');
         }
 
         if (searchText) {
