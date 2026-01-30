@@ -3,7 +3,7 @@ import * as TicketsScreen from './ticketList.js';
 import * as CalendarService from '../services/calendarService.js';
 import * as I18n from '../services/i18nService.js';
 import { State } from '../core/state.js';
-import { FinanceService } from '../services/financeService.js';
+import { FinanceService } from '../core/financeService.js';
 
 let currentTicketId = null;
 let currentTicketData = null; // Guardamos datos originales para comparar cambios
@@ -243,8 +243,7 @@ function setupDetailEvents(container, ticketId) {
             if (horas > 0) {
                 // Finanzas
                 const contratoId = currentTicketData.pr_proyectos?.id_contrato;
-                const rolUsuario = State.user.rol_facturacion || 'Consultor Senior';
-                const finanzas = await FinanceService.calcularDesempeno(contratoId, rolUsuario, State.user);
+                const finanzas = await FinanceService.calcularDesempeno(contratoId, State.user);
 
                 // Insertar Actividad
                 await supabase.from('pr_actividades').insert({
@@ -256,9 +255,9 @@ function setupDetailEvents(container, ticketId) {
                     fecha_inicio: new Date().toISOString(),
                     fecha_fin: new Date(new Date().getTime() + (horas * 3600000)).toISOString(),
                     es_facturable: true,
-                    id_tarifa_aplicada: finanzas?.id_tarifa || null,
-                    costo_calculado: (finanzas?.costo_interno || 0) * horas,
-                    venta_calculada: (finanzas?.precio_venta || 0) * horas
+                    id_tarifa_aplicada: null, // Se puede obtener de finanzas si se requiere
+                    costo_calculado: (finanzas?.costo_real_hora || 0) * horas,
+                    venta_calculada: (finanzas?.precio_venta_hora || 0) * horas
                 });
             }
 
