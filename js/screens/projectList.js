@@ -746,8 +746,7 @@ async function loadProjects() {
             .from('pr_proyectos')
             .select(`
                 *,
-                pr_organizaciones ( nombre_comercial ),
-                pr_usuarios!pr_proyectos_id_responsable_fkey ( nombre_completo )
+                pr_organizaciones ( nombre_comercial )
             `);
 
         // Si es cliente, filtrar por organización
@@ -929,7 +928,7 @@ function renderProjects() {
         
         const methodology = project.metodologia === 'AGILE' ? '🔄 Ágil' : '📊 Cascada';
         const clientName = project.pr_organizaciones?.nombre_comercial || 'Sin Cliente';
-        const pmName = project.pr_usuarios?.nombre_completo || 'Sin PM';
+        const projectCode = project.codigo_proyecto || 'Sin código';
         
         return `
             <div class="project-card" data-project-id="${project.id_proyecto}">
@@ -954,8 +953,8 @@ function renderProjects() {
                         <span>${clientName}</span>
                     </div>
                     <div class="project-meta-item">
-                        <span>👤</span>
-                        <span>${pmName}</span>
+                        <span>🔖</span>
+                        <span>${projectCode}</span>
                     </div>
                     <div class="project-meta-item">
                         <span>📅</span>
