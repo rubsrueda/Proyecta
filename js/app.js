@@ -21,20 +21,23 @@ async function initApp() {
     const isArchitect = localStorage.getItem('PROYECTA_ARCHITECT_MODE') === 'true';
     let userId = null;
 
-    if (isArchitect) {
+    // 2. Verificar sesión REAL de Supabase primero
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        // Si hay sesión real, no usar modo arquitecto
+        localStorage.removeItem('PROYECTA_ARCHITECT_MODE');
+        State.user = session.user;
+        userId = session.user.id;
+    } else if (isArchitect) {
         console.warn("⚠️ MODO ARQUITECTO ACTIVADO");
         // Usamos el ID fijo que creamos en SQL
         userId = '00000000-0000-0000-0000-000000000000';
         
         // Simulamos un objeto usuario en el State
         State.user = { id: userId, email: 'architect@sys' };
-    
     } else {
-        // 2. Si no es arquitecto, verificar sesión REAL de Supabase
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { window.location.href = 'index.html'; return; }
-        State.user = session.user;
-        userId = session.user.id;
+        window.location.href = 'index.html';
+        return;
     }
 
     try {

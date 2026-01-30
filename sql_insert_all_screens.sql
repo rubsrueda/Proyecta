@@ -40,7 +40,8 @@ INSERT INTO pr_sis_pantallas (codigo_pantalla, clave_nombre, ruta_archivo) VALUE
 ('PAN_DASHBOARD', 'Dashboard', 'dashboard.js'),
 ('PAN_MIS_ACTIVIDADES', 'Mis Actividades', 'myActivities.js'),
 ('PAN_TIMESHEET', 'Reporte de Horas', 'timesheet.js'),
-('PAN_GAMIFICATION', 'Mi Perfil', 'gamification.js')
+('PAN_GAMIFICATION', 'Mi Perfil', 'gamification.js'),
+('PAN_REP_CONSULTOR', 'Reporte Trabajo Consultor', 'consultantWorkReport.js')
 ON CONFLICT(codigo_pantalla) DO NOTHING;
 
 -- 6. MÓDULO RRHH
@@ -59,4 +60,4 @@ INSERT INTO pr_sis_pantallas (codigo_pantalla, clave_nombre, ruta_archivo) VALUE
 ON CONFLICT(codigo_pantalla) DO NOTHING;
 
 -- Verificar que se insertaron correctamente
-SELECT codigo_pantalla, nombre_pantalla FROM pr_sis_pantallas ORDER BY codigo_pantalla;
+SELECT codigo_pantalla, clave_nombre FROM pr_sis_pantallas ORDER BY codigo_pantalla;

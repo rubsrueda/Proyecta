@@ -8,6 +8,8 @@ const formEmail = document.getElementById('formEmail');
 // Opción A: Login con Google (La potente)
 btnGoogle.addEventListener('click', async () => {
     try {
+        // Evitar que quede activo el modo arquitecto en login Google
+        localStorage.removeItem('PROYECTA_ARCHITECT_MODE');
         const redirectUrl = getRedirectUrl();
         console.log('[LOGIN] Redirect URL para OAuth:', redirectUrl);
         

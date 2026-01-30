@@ -128,7 +128,7 @@ SELECT
     id_pantalla,
     3 as nivel_acceso
 FROM pr_sis_pantallas 
-WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION')
+WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION', 'PAN_REP_CONSULTOR')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO pr_sis_permisos_arbol (id_perfil, id_menu, id_pantalla, nivel_acceso)
@@ -199,7 +199,7 @@ SELECT
     id_pantalla,
     2 as nivel_acceso
 FROM pr_sis_pantallas 
-WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION')
+WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION', 'PAN_REP_CONSULTOR')
 ON CONFLICT DO NOTHING;
 
 -- RRHH (nivel 2)
@@ -259,7 +259,7 @@ SELECT
     id_pantalla,
     2 as nivel_acceso
 FROM pr_sis_pantallas 
-WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET')
+WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_REP_CONSULTOR')
 ON CONFLICT DO NOTHING;
 
 -- Reportes (nivel 1 - solo ver)
@@ -308,7 +308,7 @@ SELECT
     id_pantalla,
     2 as nivel_acceso
 FROM pr_sis_pantallas 
-WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION')
+WHERE codigo_pantalla IN ('PAN_DASHBOARD', 'PAN_MIS_ACTIVIDADES', 'PAN_TIMESHEET', 'PAN_GAMIFICATION', 'PAN_REP_CONSULTOR')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================================

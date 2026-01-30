@@ -180,6 +180,32 @@ async function loadCatalogs() {
     });
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function getUserIdCandidates() {
+    const { data, error } = await supabase
+        .from('pr_usuarios')
+        .select('id_usuario')
+        .order('id_usuario', { ascending: false })
+        .limit(1);
+
+    if (!error && data && data[0] && data[0].id_usuario !== null && data[0].id_usuario !== undefined) {
+        const lastId = data[0].id_usuario;
+
+        if (typeof lastId === 'string' && UUID_REGEX.test(lastId)) {
+            return [crypto.randomUUID()];
+        }
+
+        const numericId = Number(lastId);
+        if (Number.isFinite(numericId)) {
+            return [numericId + 1];
+        }
+    }
+
+    // Tabla vacía o tipo desconocido: probamos UUID y luego entero
+    return [crypto.randomUUID(), 1];
+}
+
 // 3. ABRIR MODAL
 function openModal(user = null) {
     const modal = document.getElementById('modalUser');
@@ -265,7 +291,30 @@ function setupEvents() {
         } else {
             const res = await supabase.from('pr_usuarios').insert(userData).select().single();
             error = res.error;
-            if (res.data) finalId = res.data.id_usuario;
+            if (res.data) {
+                finalId = res.data.id_usuario;
+            } else if (error && /null value in column\s+"id_usuario"/i.test(error.message)) {
+                const candidates = await getUserIdCandidates();
+                for (const candidate of candidates) {
+                    const retry = await supabase
+                        .from('pr_usuarios')
+                        .insert({ ...userData, id_usuario: candidate })
+                        .select()
+                        .single();
+
+                    if (!retry.error && retry.data) {
+                        error = null;
+                        finalId = retry.data.id_usuario;
+                        break;
+                    }
+
+                    error = retry.error;
+
+                    if (!error || !/(invalid input syntax|duplicate key|violates unique constraint)/i.test(error.message)) {
+                        break;
+                    }
+                }
+            }
         }
 
         if(error) { alert("Error: " + error.message); return; }
