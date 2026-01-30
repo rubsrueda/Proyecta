@@ -1171,9 +1171,11 @@ async function cargarComboContratos(idOrganizacion) {
     
     const { data: contratos, error } = await supabase
         .from('pr_com_contratos')
-        .select('id_contrato, codigo_contrato, descripcion')
+        .select('*')
         .eq('id_organizacion', idOrganizacion)
         .order('fecha_inicio', { ascending: false });
+    
+    console.log('📦 Contratos obtenidos:', contratos);
 
     if (error) {
         console.error('Error cargando contratos:', error);
