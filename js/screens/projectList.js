@@ -181,6 +181,13 @@ export async function render(container) {
                         </select>
                     </div>
 
+                    <div class="form-group">
+                        <label>Contrato</label>
+                        <select id="projContract" class="form-control" required>
+                            <option value="">Primero seleccione un cliente...</option>
+                        </select>
+                    </div>
+
                     <div class="form-inline-group">
                         <label>Metodología</label>
                         <select id="projMethod">
@@ -1099,6 +1106,16 @@ function setupEvents() {
 
     btnsClose.forEach(b => b.addEventListener('click', () => modal.style.display = 'none'));
 
+    // Cuando cambie el cliente, cargar contratos
+    document.getElementById('projOrg').addEventListener('change', async (e) => {
+        const idOrg = e.target.value;
+        if (idOrg) {
+            await cargarComboContratos(idOrg);
+        } else {
+            document.getElementById('projContract').innerHTML = '<option value="">Primero seleccione un cliente...</option>';
+        }
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -1106,6 +1123,7 @@ function setupEvents() {
             nombre: document.getElementById('projName').value,
             codigo_proyecto: document.getElementById('projCode').value,
             id_organizacion: document.getElementById('projOrg').value,
+            id_contrato: document.getElementById('projContract').value,
             metodologia: document.getElementById('projMethod').value,
             bolsa_horas_vendidas: parseFloat(document.getElementById('projHours').value) || 0,
             fecha_inicio: document.getElementById('projStart').value,
@@ -1145,4 +1163,35 @@ async function cargarComboClientes() {
             select.appendChild(opt);
         });
     }
+}
+
+async function cargarComboContratos(idOrganizacion) {
+    const select = document.getElementById('projContract');
+    select.innerHTML = '<option value="">Cargando contratos...</option>';
+    
+    const { data: contratos, error } = await supabase
+        .from('pr_contratos')
+        .select('id_contrato, codigo_contrato, descripcion')
+        .eq('id_organizacion', idOrganizacion)
+        .eq('activo', true)
+        .order('fecha_inicio', { ascending: false });
+
+    if (error) {
+        console.error('Error cargando contratos:', error);
+        select.innerHTML = '<option value="">Error cargando contratos</option>';
+        return;
+    }
+
+    if (!contratos || contratos.length === 0) {
+        select.innerHTML = '<option value="">⚠️ Este cliente no tiene contratos activos</option>';
+        return;
+    }
+
+    select.innerHTML = '<option value="">Seleccione Contrato...</option>';
+    contratos.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id_contrato;
+        opt.innerText = `${c.codigo_contrato} - ${c.descripcion || 'Sin descripción'}`;
+        select.appendChild(opt);
+    });
 }
