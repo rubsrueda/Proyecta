@@ -179,9 +179,61 @@ input, select, textarea { width: 100%; padding: 8px; font-size: 14px; border: 1p
 /* =========================================
    5. MODAL & DETALLES
    ========================================= */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-end; }
-.modal-content { background: white; width: 100%; border-radius: 12px 12px 0 0; padding: 15px; max-height: 90vh; overflow-y: auto; }
-.modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+.modal-overlay { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    background: rgba(0,0,0,0.5); 
+    z-index: 1000; 
+    display: none; 
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.modal-content { 
+    background: white; 
+    width: 100%; 
+    border-radius: 12px 12px 0 0; 
+    padding: 15px; 
+    max-height: 90vh; 
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 0;
+    cursor: grab;
+    user-select: none;
+}
+
+.modal-header h3 {
+    margin: 0;
+    padding: 0;
+}
+
+.close-modal {
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #64748b;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
 
 /* =========================================
    6. ESCRITORIO (> 768px)
@@ -200,8 +252,24 @@ input, select, textarea { width: 100%; padding: 8px; font-size: 14px; border: 1p
     .data-table td:nth-child(4), .data-table td:nth-child(5) { grid-column: auto; grid-row: auto; }
     
     .ticket-code { background: #eff6ff; padding: 3px 6px; border-radius: 4px; }
-    .modal-overlay { align-items: center; }
-    .modal-content { width: 500px; border-radius: 8px; }
+    
+    .modal-overlay { 
+        align-items: center; 
+        justify-content: center;
+    }
+    
+    .modal-content { 
+        width: 90%;
+        max-width: 600px;
+        border-radius: 8px;
+        max-height: 85vh;
+    }
+    
+    .modal-header {
+        cursor: move;
+        border-bottom: 2px solid #f0f1f2;
+        padding-bottom: 10px;
+    }
 }
 
 

@@ -2,6 +2,8 @@ import { supabase } from '../config.js';
 import * as TicketsScreen from './ticketList.js'; 
 import * as CalendarService from '../services/calendarService.js';
 import * as I18n from '../services/i18nService.js';
+import { State } from '../core/state.js';
+import { FinanceService } from '../services/financeService.js';
 
 let currentTicketId = null;
 let currentTicketData = null; // Guardamos datos originales para comparar cambios
@@ -237,39 +239,40 @@ function setupDetailEvents(container, ticketId) {
         const horas = parseFloat(document.getElementById('closeHours').value) || 0;
         const comentario = document.getElementById('closeComment').value;
 
-        if (horas > 0) {
-            // Importar servicios dinámicamente
-            const { FinanceService } = await import('../services/financeService.js');
-            const { State } = await import('../core/state.js');
-            
-            // Finanzas
-            const contratoId = currentTicketData.pr_proyectos?.id_contrato;
-            const rolUsuario = State.user.rol_facturacion || 'Consultor Senior';
-            const finanzas = await FinanceService.calcularDesempeno(contratoId, rolUsuario, State.user);
+        try {
+            if (horas > 0) {
+                // Finanzas
+                const contratoId = currentTicketData.pr_proyectos?.id_contrato;
+                const rolUsuario = State.user.rol_facturacion || 'Consultor Senior';
+                const finanzas = await FinanceService.calcularDesempeno(contratoId, rolUsuario, State.user);
 
-            // Insertar Actividad
-            await supabase.from('pr_actividades').insert({
-                id_ticket: ticketId,
-                id_usuario: State.user.id,
-                tipo_actividad: 'CIERRE',
-                resumen: comentario || 'Cierre de Ticket',
-                duracion_minutos: Math.round(horas * 60),
-                fecha_inicio: new Date().toISOString(),
-                fecha_fin: new Date(new Date().getTime() + (horas * 3600000)).toISOString(),
-                es_facturable: true,
-                id_tarifa_aplicada: finanzas?.id_tarifa || null,
-                costo_calculado: (finanzas?.costo_interno || 0) * horas,  // Variable corregida
-                venta_calculada: (finanzas?.precio_venta || 0) * horas    // Variable corregida
-            });
+                // Insertar Actividad
+                await supabase.from('pr_actividades').insert({
+                    id_ticket: currentTicketId,
+                    id_usuario: State.user.id,
+                    tipo_actividad: 'CIERRE',
+                    resumen: comentario || 'Cierre de Ticket',
+                    duracion_minutos: Math.round(horas * 60),
+                    fecha_inicio: new Date().toISOString(),
+                    fecha_fin: new Date(new Date().getTime() + (horas * 3600000)).toISOString(),
+                    es_facturable: true,
+                    id_tarifa_aplicada: finanzas?.id_tarifa || null,
+                    costo_calculado: (finanzas?.costo_interno || 0) * horas,
+                    venta_calculada: (finanzas?.precio_venta || 0) * horas
+                });
+            }
+
+            // Forzamos update de descripción con el comentario de cierre
+            if (comentario) {
+                document.getElementById('detailDesc').value += `\n[CIERRE]: ${comentario}`;
+            }
+
+            modalClose.style.display = 'none';
+            await saveTicketChanges(); // Guardar ticket como cerrado
+        } catch (err) {
+            console.error('Error al confirmar cierre:', err);
+            alert('Error al guardar el cierre: ' + err.message);
         }
-
-        // Forzamos update de descripción con el comentario de cierre
-        if (comentario) {
-            document.getElementById('detailDesc').value += `\n[CIERRE]: ${comentario}`;
-        }
-
-        modalClose.style.display = 'none';
-        await saveTicketChanges(); // Guardar ticket como cerrado
     };
     
     // --- FIN LÓGICA GUARDADO ---
@@ -313,6 +316,50 @@ function setupDetailEvents(container, ticketId) {
     };
 
     refrescarTablaActividades();
+
+    // === HACER MODAL DRAGGABLE EN DESKTOP ===
+    const modalOverlay = document.getElementById('modalCloseTicket');
+    const modalContent = modalOverlay.querySelector('.modal-content');
+    const modalHeader = modalContent.querySelector('.modal-header');
+    
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
+    // Solo en desktop (> 768px)
+    if (window.innerWidth > 768) {
+        modalHeader.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('close-modal')) return;
+            
+            isDragging = true;
+            const rect = modalContent.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            modalHeader.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const overlayRect = modalOverlay.getBoundingClientRect();
+            let newX = e.clientX - overlayRect.left - dragOffsetX;
+            let newY = e.clientY - overlayRect.top - dragOffsetY;
+            
+            // Limitar movimiento dentro del viewport
+            newX = Math.max(10, Math.min(newX, overlayRect.width - modalContent.offsetWidth - 10));
+            newY = Math.max(10, Math.min(newY, overlayRect.height - modalContent.offsetHeight - 10));
+            
+            modalContent.style.position = 'absolute';
+            modalContent.style.left = newX + 'px';
+            modalContent.style.top = newY + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            modalHeader.style.cursor = 'move';
+        });
+    }
 }
 
 // Función auxiliar para guardar el ticket
