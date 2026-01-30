@@ -4,6 +4,7 @@ import { Router } from './core/router.js';
 import * as I18n from './services/i18nService.js';
 import * as MenuService from './services/menuService.js';
 import { APP_CONFIG, validateUserAccess } from './appConfig.js';
+import { VERSION } from './version.js';
 
 // 1. EVENTO DE ARRANQUE
 document.addEventListener('DOMContentLoaded', () => {
@@ -66,6 +67,12 @@ async function initApp() {
         
         setupNavigation();
         setupUI();
+
+        // Actualizar marca de agua con la versión
+        const versionElement = document.getElementById('app-version');
+        if (versionElement) {
+            versionElement.textContent = VERSION.number;
+        }
 
         loadingScreen.style.display = 'none';
         appContent.style.display = 'flex';
