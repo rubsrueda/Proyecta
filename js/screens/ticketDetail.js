@@ -87,6 +87,18 @@ export async function render(container, ticketId) {
                     <label style="font-size:0.75rem; font-weight:600;" data-i18n="lbl_descripcion">Descripción</label>
                     <textarea id="detailDesc" class="form-control" rows="3" style="font-size:0.85rem;">${ticket.descripcion}</textarea>
                 </div>
+
+                ${ticket.archivo_adjunto ? `
+                <div class="form-group">
+                    <label style="font-size:0.75rem; font-weight:600;">📎 Archivo Adjunto</label>
+                    <div style="display:flex; align-items:center; gap:10px; padding:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;">
+                        <span style="font-size:0.85rem;">${ticket.archivo_adjunto.split('/').pop()}</span>
+                        <button type="button" id="btnDownloadAttachment" class="btn-secondary" style="padding:4px 12px; font-size:0.8rem;">
+                            Descargar
+                        </button>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
 
@@ -202,6 +214,37 @@ async function loadDetailDynamicFields(orgId, valoresActuales) {
 function setupDetailEvents(container, ticketId) {
     // Volver
     document.getElementById('btnBack').onclick = () => TicketsScreen.render(container);
+
+    // Descargar archivo adjunto si existe
+    const btnDownload = document.getElementById('btnDownloadAttachment');
+    if (btnDownload) {
+        btnDownload.onclick = async () => {
+            try {
+                const filePath = currentTicketData.archivo_adjunto;
+                if (!filePath) {
+                    alert('No hay archivo adjunto');
+                    return;
+                }
+
+                // Obtener URL pública temporal (válida por 60 segundos)
+                const { data, error } = await supabase.storage
+                    .from('attachments')
+                    .createSignedUrl(filePath, 60);
+
+                if (error) {
+                    console.error('Error obteniendo URL:', error);
+                    alert('Error al obtener el archivo: ' + error.message);
+                    return;
+                }
+
+                // Abrir en nueva pestaña o descargar
+                window.open(data.signedUrl, '_blank');
+            } catch (err) {
+                console.error('Error descargando archivo:', err);
+                alert('Error al descargar: ' + err.message);
+            }
+        };
+    }
 
     // Tabs
     const tabs = container.querySelectorAll('.tab-btn');

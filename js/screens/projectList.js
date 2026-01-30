@@ -168,19 +168,10 @@ async function loadProjects() {
                 </div>
                 
                 <h3 style="margin:0 0 5px 0; color:#1e293b;">${p.nombre}</h3>
-                <div style="font-size:0.85rem; color:#64748b; font-weight:600; margin-bottom:15px;">`
-        });
-    } catch (err) {
-        console.error('[PROYECTOS] Error:', err);
-    }
-                <span style="font-size:0.8rem; color:#64748b;">${Utils.formatDate(p.fecha_inicio)}</span>
-            </div>
-            
-            <h3 style="margin:0 0 5px 0; color:#1e293b;">${p.nombre}</h3>
-            <div style="font-size:0.85rem; color:#64748b; font-weight:600; margin-bottom:15px;">
-                <span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">domain</span>
-                ${p.pr_organizaciones?.nombre_comercial || 'Sin Cliente'}
-            </div>
+                <div style="font-size:0.85rem; color:#64748b; font-weight:600; margin-bottom:15px;">
+                    <span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">domain</span>
+                    ${p.pr_organizaciones?.nombre_comercial || 'Sin Cliente'}
+                </div>
 
             <!-- Barra de Progreso Financiero/Horas -->
             <div style="margin-bottom:5px; font-size:0.75rem; display:flex; justify-content:space-between;">
@@ -198,6 +189,9 @@ async function loadProjects() {
 
         grid.appendChild(card);
     });
+    } catch (err) {
+        console.error('[PROYECTOS] Error:', err);
+    }
 }
 
 function setupEvents() {

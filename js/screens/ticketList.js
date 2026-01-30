@@ -2,12 +2,15 @@ import { supabase } from '../config.js';
 import { State } from '../core/state.js';
 import * as DetailScreen from './ticketDetail.js';
 import * as I18n from '../services/i18nService.js';
+import * as GmailService from '../services/gmailService.js';
 
 let containerRef = null;
 let dynamicFieldsConfig = [];
+let gmailAttachmentsData = null; // Para guardar datos de adjuntos de Gmail
 
 export async function render(container, datosPrellenados = null) {
     containerRef = container;
+    gmailAttachmentsData = datosPrellenados; // Guardar para usar al crear ticket
     
     container.innerHTML = `
         <div class="screen-header">
@@ -33,9 +36,10 @@ export async function render(container, datosPrellenados = null) {
                         <th>Estado</th>
                         <th>Prioridad</th>
                         <th>Fecha</th>
+                        <th>Adjunto</th>
                     </tr>
                 </thead> 
-                <tbody><tr><td colspan="5" style="text-align:center" data-i18n="lbl_loading">Cargando...</td></tr></tbody>
+                <tbody><tr><td colspan="6" style="text-align:center" data-i18n="lbl_loading">Cargando...</td></tr></tbody>
             </table>
         </div>
 
@@ -83,6 +87,13 @@ export async function render(container, datosPrellenados = null) {
                         <textarea id="ticketDesc" class="form-control" required rows="3"></textarea>
                     </div>
 
+                    <!-- 6. Archivo Adjunto -->
+                    <div class="form-group">
+                        <label data-i18n="lbl_attachment">Archivo Adjunto (Opcional)</label>
+                        <input type="file" id="ticketAttachment" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                        <small style="color:#64748b; font-size:0.75rem;">Máx. 5MB - Imágenes, PDF, documentos</small>
+                    </div>
+
                     <div class="modal-footer">
                         <button type="button" class="btn-secondary close-modal-btn" data-i18n="btn_cancelar">Cancelar</button>
                         <button type="submit" class="btn-primary" data-i18n="btn_crear">Crear</button>
@@ -100,6 +111,30 @@ export async function render(container, datosPrellenados = null) {
     if (datosPrellenados) {
         document.getElementById('ticketTitle').value = datosPrellenados.asunto || '';
         document.getElementById('ticketDesc').value = datosPrellenados.cuerpo || '';
+        
+        // Mostrar información de adjuntos de Gmail si existen
+        if (datosPrellenados.attachments && datosPrellenados.attachments.length > 0) {
+            const fileInput = document.getElementById('ticketAttachment');
+            const parent = fileInput.parentElement;
+            
+            // Agregar mensaje informativo sobre adjuntos de Gmail
+            const gmailAttachInfo = document.createElement('div');
+            gmailAttachInfo.id = 'gmailAttachmentsInfo';
+            gmailAttachInfo.style.cssText = 'margin-top:8px; padding:8px; background:#dbeafe; border-radius:4px; font-size:0.8rem;';
+            gmailAttachInfo.innerHTML = `
+                <div style="font-weight:600; margin-bottom:4px; color:#1e40af;">📧 Adjuntos del correo (${datosPrellenados.attachments.length}):</div>
+                ${datosPrellenados.attachments.map(att => `<div>• ${att.filename}</div>`).join('')}
+                <div style="margin-top:4px; color:#475569; font-size:0.75rem;">
+                    ℹ️ Se guardarán automáticamente al crear el ticket
+                </div>
+            `;
+            parent.appendChild(gmailAttachInfo);
+            
+            // Ocultar el input de archivo local cuando hay adjuntos de Gmail
+            fileInput.style.display = 'none';
+            fileInput.previousElementSibling.style.display = 'none'; // Ocultar el <small>
+        }
+        
         await loadDynamicFields(); 
         document.getElementById('modalCreate').style.display = 'flex';
     }
@@ -248,7 +283,11 @@ async function guardarTicket() {
         console.log('[CREAR TICKET] Insertando:', nuevoTicket);
 
         // 6. Insertar en BD
-        const { error } = await supabase.from('pr_tickets').insert(nuevoTicket);
+        const { data: ticketData, error } = await supabase
+            .from('pr_tickets')
+            .insert(nuevoTicket)
+            .select()
+            .single();
 
         if (error) {
             console.error('[CREAR TICKET] Error insertando:', error);
@@ -259,7 +298,51 @@ async function guardarTicket() {
             }
         } else {
             console.log('[CREAR TICKET] Ticket creado exitosamente');
-            alert('✅ Ticket creado exitosamente');
+            
+            // 7. Subir archivo adjunto si existe
+            const fileInput = document.getElementById('ticketAttachment');
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                
+                // Validar tamaño (5MB máximo)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('✅ Ticket creado, pero el archivo es demasiado grande (máx. 5MB)');
+                } else {
+                    try {
+                        const ticketId = ticketData.id_ticket;
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${finalCode}_${Date.now()}.${fileExt}`;
+                        const filePath = `tickets/${ticketId}/${fileName}`;
+
+                        console.log('[CREAR TICKET] Subiendo archivo:', fileName);
+
+                        // Subir a Supabase Storage
+                        const { error: uploadError } = await supabase.storage
+                            .from('attachments')
+                            .upload(filePath, file);
+
+                        if (uploadError) {
+                            console.error('[CREAR TICKET] Error subiendo archivo:', uploadError);
+                            alert('✅ Ticket creado, pero hubo un error al subir el archivo: ' + uploadError.message);
+                        } else {
+                            // Actualizar el ticket con la ruta del archivo
+                            await supabase
+                                .from('pr_tickets')
+                                .update({ archivo_adjunto: filePath })
+                                .eq('id_ticket', ticketId);
+                            
+                            console.log('[CREAR TICKET] Archivo subido correctamente');
+                            alert('✅ Ticket creado exitosamente con archivo adjunto');
+                        }
+                    } catch (uploadErr) {
+                        console.error('[CREAR TICKET] Excepción al subir archivo:', uploadErr);
+                        alert('✅ Ticket creado, pero error al procesar archivo');
+                    }
+                }
+            } else {
+                alert('✅ Ticket creado exitosamente');
+            }
+            
             document.getElementById('modalCreate').style.display = 'none';
             document.getElementById('formCreateTicket').reset();
             await cargarTickets();  // Recargar lista
@@ -425,15 +508,31 @@ async function cargarTickets() {
             <td data-label="Estado" style="${style}"><span class="badge ${t.estado}">${t.estado}</span></td>
             <td data-label="Prioridad" style="${style}">${t.prioridad}</td>
             <td data-label="Fecha" style="${style}">${new Date(t.fecha_creacion).toLocaleDateString()}</td>
+            <td data-label="Adjunto" style="${style} text-align:center;">
+                ${t.archivo_adjunto ? 
+                    `<button class="btn-download-attachment" data-file-path="${t.archivo_adjunto}" title="Descargar archivo" style="padding:4px 8px; font-size:0.75rem; background:#2563eb; color:white; border:none; border-radius:4px; cursor:pointer;">📎</button>` 
+                    : '<span style="color:#94a3b8;">-</span>'}
+            </td>
         `;
-        row.onclick = () => { if(containerRef) DetailScreen.render(containerRef, t.id_ticket); };
+        
+        // Agregar evento de clic al botón de descarga si existe
+        row.onclick = (e) => {
+            // Si se hace clic en el botón de descarga, no abrir el detalle
+            if (e.target.classList.contains('btn-download-attachment')) {
+                e.stopPropagation();
+                downloadAttachment(e.target.dataset.filePath);
+            } else {
+                if(containerRef) DetailScreen.render(containerRef, t.id_ticket);
+            }
+        };
+        
         tbody.appendChild(row);
     });
     } catch(e) {
         console.error('[TICKETS] Error inesperado:', e);
         const tbody = document.querySelector('#ticketsTable tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="color:red; text-align:center;">Error: ${e.message}</td></tr>`;
         }
     }
 }
@@ -460,4 +559,33 @@ function setupEvents() {
         e.preventDefault();
         await guardarTicket();
     };
+}
+
+// Función para descargar archivo adjunto
+async function downloadAttachment(filePath) {
+    try {
+        if (!filePath) {
+            alert('No hay archivo adjunto');
+            return;
+        }
+
+        console.log('[TICKETS] Descargando archivo:', filePath);
+
+        // Obtener URL pública temporal (válida por 60 segundos)
+        const { data, error } = await supabase.storage
+            .from('attachments')
+            .createSignedUrl(filePath, 60);
+
+        if (error) {
+            console.error('[TICKETS] Error obteniendo URL:', error);
+            alert('Error al obtener el archivo: ' + error.message);
+            return;
+        }
+
+        // Abrir en nueva pestaña o descargar
+        window.open(data.signedUrl, '_blank');
+    } catch (err) {
+        console.error('[TICKETS] Error descargando archivo:', err);
+        alert('Error al descargar: ' + err.message);
+    }
 }
