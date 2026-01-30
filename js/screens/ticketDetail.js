@@ -267,7 +267,7 @@ function setupDetailEvents(container, ticketId) {
             }
 
             modalClose.style.display = 'none';
-            await saveTicketChanges(); // Guardar ticket como cerrado
+            await saveTicketChanges(true); // Guardar ticket como cerrado y regresar a lista
         } catch (err) {
             console.error('Error al confirmar cierre:', err);
             alert('Error al guardar el cierre: ' + err.message);
@@ -362,7 +362,7 @@ function setupDetailEvents(container, ticketId) {
 }
 
 // Función auxiliar para guardar el ticket
-async function saveTicketChanges() {
+async function saveTicketChanges(shouldReturnToList = false) {
     const newStatus = document.getElementById('detailStatus').value;
     const newPriority = document.getElementById('detailPriority').value;
     const newDesc = document.getElementById('detailDesc').value;
@@ -384,10 +384,20 @@ async function saveTicketChanges() {
         })
         .eq('id_ticket', currentTicketId);
 
-    if (error) alert("Error: " + error.message);
-    else {
+    if (error) {
+        alert("Error: " + error.message);
+    } else {
         alert(I18n.t('msg_saved_ok') || "Guardado correctamente");
-        // Recargar para refrescar estado
-        render(document.getElementById('workspace'), currentTicketId);
+        
+        // Si se resolvió el ticket, regresar a la lista de tickets
+        if (shouldReturnToList || newStatus === 'RESUELTO') {
+            const workspace = document.getElementById('workspace');
+            if (workspace) {
+                await TicketsScreen.render(workspace);
+            }
+        } else {
+            // Recargar para refrescar estado
+            render(document.getElementById('workspace'), currentTicketId);
+        }
     }
 }
