@@ -1165,11 +1165,12 @@ async function cargarComboClientes() {
 }
 
 async function cargarComboContratos(idOrganizacion) {
+    console.log('🔧 [FIX] Usando pr_com_contratos - v2.0');
     const select = document.getElementById('projContract');
     select.innerHTML = '<option value="">Cargando contratos...</option>';
     
     const { data: contratos, error } = await supabase
-        .from('pr_contratos')
+        .from('pr_com_contratos')
         .select('id_contrato, codigo_contrato, descripcion')
         .eq('id_organizacion', idOrganizacion)
         .eq('activo', true)
