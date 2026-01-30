@@ -131,8 +131,10 @@ function setupEvents(profile) {
         e.preventDefault();
         console.log('[TICKET CREATE] ========== INICIO SUBMIT ==========');
         
-        // Generar Código Simple
-        const code = 'TK-' + Math.floor(Math.random() * 100000);
+        // Generar Código con formato TK:AAAAA-AXXXXXX
+        const year = new Date().getFullYear();
+        const randomCode = Math.floor(Math.random() * 900000) + 100000;
+        const code = `TK:${year}-A${randomCode}`;
         console.log('[TICKET CREATE] Código generado:', code);
 
         const newTicket = {

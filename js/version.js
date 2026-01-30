@@ -2,9 +2,9 @@
 // Formato: MAJOR.MINOR (incrementa MINOR con cada cambio)
 
 export const VERSION = {
-    number: '1.0002',
+    number: '1.0003',
     date: '2026-01-30',
-    description: 'Gestión de contratos: edición, estado de facturación y validaciones'
+    description: 'Corrección formato código de ticket en PAN_TICKET_ALTA'
 };
 
 // Registrar versión en consola
