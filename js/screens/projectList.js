@@ -718,7 +718,11 @@ async function loadPortfolioData() {
 async function loadProjects() {
     try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            console.log('[PORTAFOLIO] Usuario no autenticado');
+            allProjects = [];
+            return;
+        }
 
         const { data: userData } = await supabase
             .from('pr_usuarios')
@@ -726,8 +730,10 @@ async function loadProjects() {
             .eq('email', user.email)
             .single();
 
-        const filterStatus = document.getElementById('filterStatus').value;
-        const searchText = document.getElementById('searchPortfolio').value.toLowerCase();
+        const filterStatus = document.getElementById('filterStatus')?.value || 'ALL';
+        const searchText = document.getElementById('searchPortfolio')?.value?.toLowerCase() || '';
+
+        console.log('[PORTAFOLIO] Cargando proyectos con filtro:', filterStatus);
 
         let query = supabase
             .from('pr_proyectos')
@@ -742,23 +748,32 @@ async function loadProjects() {
             query = query.eq('id_organizacion', userData.id_organizacion_principal);
         }
 
-        if (filterStatus !== 'ALL') {
+        // Solo aplicar filtro de estado si no es "ALL"
+        if (filterStatus && filterStatus !== 'ALL') {
             query = query.eq('estado', filterStatus);
         }
 
         const { data: projects, error } = await query.order('fecha_inicio', { ascending: false });
 
         if (error) {
-            console.error('Error cargando proyectos:', error);
+            console.error('[PORTAFOLIO] Error cargando proyectos:', error);
             allProjects = [];
             return;
         }
 
-        // Filtrar por búsqueda
-        allProjects = (projects || []).filter(p => 
-            p.nombre.toLowerCase().includes(searchText) || 
-            (p.pr_organizaciones?.nombre_comercial || '').toLowerCase().includes(searchText)
-        );
+        console.log('[PORTAFOLIO] Proyectos cargados:', projects?.length || 0);
+
+        // Filtrar por búsqueda solo si hay texto
+        if (searchText) {
+            allProjects = (projects || []).filter(p => 
+                p.nombre?.toLowerCase().includes(searchText) || 
+                (p.pr_organizaciones?.nombre_comercial || '').toLowerCase().includes(searchText)
+            );
+        } else {
+            allProjects = projects || [];
+        }
+
+        console.log('[PORTAFOLIO] Proyectos después de filtro:', allProjects.length);
 
     } catch (err) {
         console.error('[PORTAFOLIO] Error:', err);
