@@ -54,10 +54,11 @@ export async function render(container) {
                     <textarea id="tktDesc" class="form-control" rows="5" required placeholder="Pasos para reproducir el error..."></textarea>
                 </div>
 
-                <!-- ARCHIVOS (Placeholder visual) -->
-                <div class="form-group" style="border: 2px dashed #cbd5e1; padding:20px; text-align:center; border-radius:6px; color:#64748b;">
-                    <span class="material-symbols-outlined">attach_file</span>
-                    <div>Adjuntar capturas de pantalla (Próximamente)</div>
+                <!-- ARCHIVOS ADJUNTOS -->
+                <div class="form-group">
+                    <label>Archivo Adjunto (Opcional)</label>
+                    <input type="file" id="tktAttachment" class="form-control" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                    <small style="color:#64748b; font-size:0.75rem;">Máx. 5MB - Imágenes, PDF, documentos</small>
                 </div>
 
                 <div class="modal-footer" style="margin-top:20px;">
@@ -118,14 +119,62 @@ function setupEvents(profile) {
             estado: document.getElementById('tktAssignee')?.value ? 'EN_PROCESO' : 'ABIERTO' // Si asigné directo, ya está en proceso
         };
 
-        const { error } = await supabase.from('pr_tickets').insert(newTicket);
+        const { data: ticketData, error } = await supabase
+            .from('pr_tickets')
+            .insert(newTicket)
+            .select()
+            .single();
 
         if (error) {
             alert("Error: " + error.message);
-        } else {
-            alert(`Ticket creado con éxito (${code}).`);
-            // Redirigir a "Mis Tickets" (Lista)
-            Router.navigate('PAN_TICKET_LIST');
+            return;
         }
+
+        // Subir archivo adjunto si existe
+        const fileInput = document.getElementById('tktAttachment');
+        if (fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            
+            // Validar tamaño (5MB máximo)
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`✅ Ticket creado (${code}), pero el archivo es demasiado grande (máx. 5MB)`);
+            } else {
+                try {
+                    const ticketId = ticketData.id_ticket;
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${code}_${Date.now()}.${fileExt}`;
+                    const filePath = `tickets/${ticketId}/${fileName}`;
+
+                    console.log('[CREAR TICKET] Subiendo archivo:', fileName);
+
+                    // Subir a Supabase Storage
+                    const { error: uploadError } = await supabase.storage
+                        .from('attachments')
+                        .upload(filePath, file);
+
+                    if (uploadError) {
+                        console.error('[CREAR TICKET] Error subiendo archivo:', uploadError);
+                        alert(`✅ Ticket creado (${code}), pero hubo un error al subir el archivo: ` + uploadError.message);
+                    } else {
+                        // Actualizar el ticket con la ruta del archivo
+                        await supabase
+                            .from('pr_tickets')
+                            .update({ archivo_adjunto: filePath })
+                            .eq('id_ticket', ticketId);
+                        
+                        console.log('[CREAR TICKET] Archivo subido correctamente');
+                        alert(`✅ Ticket creado con éxito (${code}) con archivo adjunto`);
+                    }
+                } catch (uploadErr) {
+                    console.error('[CREAR TICKET] Excepción al subir archivo:', uploadErr);
+                    alert(`✅ Ticket creado (${code}), pero error al procesar archivo`);
+                }
+            }
+        } else {
+            alert(`✅ Ticket creado con éxito (${code}).`);
+        }
+        
+        // Redirigir a "Mis Tickets" (Lista)
+        Router.navigate('PAN_TICKET_LIST');
     };
 }
