@@ -40,8 +40,8 @@ export async function render(container) {
             <div id="repTotalHours" style="font-weight:bold; font-size:1rem;">0.0</div>
         </div>
 
-        <div class="table-container">
-            <table class="data-table" id="consultantReportTable">
+        <div class="table-container report-table-container">
+            <table class="data-table report-table" id="consultantReportTable">
                 <thead>
                     <tr>
                         <th>Año</th>
@@ -92,7 +92,7 @@ async function loadConsultants() {
 
     select.innerHTML = '';
 
-    const currentUserId = State.user?.id;
+    const currentUserId = State.profile?.id_usuario;
     const currentUser = users?.find(u => u.id_usuario === currentUserId);
     if (currentUser) {
         const opt = document.createElement('option');
@@ -120,7 +120,7 @@ async function runReport() {
     const userId = document.getElementById('repConsultant').value;
     const includeGoogle = document.getElementById('repIncludeGoogle').checked;
     const tbody = document.getElementById('consultantReportBody');
-    const currentUserId = State.user?.id;
+    const currentUserId = State.profile?.id_usuario;
 
     if (!userId) {
         tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#ef4444;">Selecciona un consultor.</td></tr>';
@@ -129,7 +129,7 @@ async function runReport() {
 
     tbody.innerHTML = '<tr><td colspan="13" style="text-align:center">Calculando...</td></tr>';
 
-    const allowGoogle = includeGoogle && currentUserId && userId === currentUserId;
+    const allowGoogle = includeGoogle && currentUserId && userId === String(currentUserId);
 
     const [localActivities, googleEvents] = await Promise.all([
         fetchLocalActivities(userId, start, end),

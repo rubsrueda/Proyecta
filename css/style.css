@@ -129,6 +129,13 @@ input, select, textarea { width: 100%; padding: 8px; font-size: 14px; border: 1p
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table thead { display: none; } /* Sin cabeceras */
 
+/* Reporte de consultor: tabla completa con scroll horizontal */
+.report-table-container { overflow-x: auto; }
+.report-table { min-width: 1200px; }
+.report-table thead { display: table-header-group; background: #f8fafc; }
+.report-table tr { display: table-row; }
+.report-table td, .report-table th { display: table-cell; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+
 .data-table tbody tr {
     display: grid;
     /* Grid de 2 filas muy pegadas */
@@ -246,6 +253,7 @@ input, select, textarea { width: 100%; padding: 8px; font-size: 14px; border: 1p
     .data-table thead { display: table-header-group; background: #f8fafc; }
     .data-table tr { display: table-row; }
     .data-table td { display: table-cell; padding: 10px 15px; border-bottom: 1px solid var(--border); }
+    .data-table tbody tr { display: table-row; grid-template-columns: none; gap: 0; padding: 0; align-items: initial; }
     
     /* Resetear grid de móvil */
     .data-table td:nth-child(1), .data-table td:nth-child(2), .data-table td:nth-child(3), 
