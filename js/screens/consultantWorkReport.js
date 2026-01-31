@@ -36,7 +36,10 @@ export async function render(container) {
         </div>
 
         <div class="card" style="margin-bottom:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-size:0.85rem; color:#64748b;">Total horas</div>
+            <div>
+                <div style="font-size:0.85rem; color:#64748b;">Total horas</div>
+                <div id="repInfo" style="font-size:0.75rem; color:#94a3b8;">Locales: 0 | Google: 0</div>
+            </div>
             <div id="repTotalHours" style="font-weight:bold; font-size:1rem;">0.0</div>
         </div>
 
@@ -131,12 +134,25 @@ async function runReport() {
 
     const allowGoogle = includeGoogle && currentUserId && userId === String(currentUserId);
 
-    const [localActivities, googleEvents] = await Promise.all([
+    const [localActivities, googleResult] = await Promise.all([
         fetchLocalActivities(userId, start, end),
-        allowGoogle ? fetchGoogleEvents(start, end) : Promise.resolve([])
+        allowGoogle ? fetchGoogleEvents(start, end) : Promise.resolve({ events: [], reason: 'not_allowed' })
     ]);
 
+    const googleEvents = googleResult.events || [];
+
     const merged = mergeActivities(localActivities, googleEvents);
+
+    const infoEl = document.getElementById('repInfo');
+    const infoParts = [`Locales: ${localActivities.length}`, `Google: ${googleEvents.length}`];
+    if (!allowGoogle && includeGoogle) {
+        infoParts.push('Google solo disponible para tu cuenta');
+    } else if (googleResult.reason === 'no_token') {
+        infoParts.push('Sesión sin token de Google');
+    } else if (googleResult.reason === 'error') {
+        infoParts.push('Error consultando Google');
+    }
+    if (infoEl) infoEl.innerText = infoParts.join(' | ');
 
     if (!merged.length) {
         tbody.innerHTML = '<tr><td colspan="13" style="text-align:center">No hay actividad en el periodo.</td></tr>';
@@ -239,59 +255,82 @@ async function fetchGoogleEvents(start, end) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session || !session.provider_token) {
         console.warn('[REPORT] Sesión sin token de Google.');
-        return [];
+        return { events: [], reason: 'no_token' };
     }
 
     const timeMin = new Date(`${start}T00:00:00`);
     const timeMax = new Date(`${end}T23:59:59`);
 
-    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?` + new URLSearchParams({
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-        maxResults: 500
-    });
+    const events = [];
+    let pageToken = null;
 
-    const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${session.provider_token}` }
-    });
+    try {
+        do {
+            const params = new URLSearchParams({
+                timeMin: timeMin.toISOString(),
+                timeMax: timeMax.toISOString(),
+                singleEvents: true,
+                orderBy: 'startTime',
+                maxResults: 2500
+            });
 
-    if (!response.ok) {
-        console.error('[REPORT] Error Google Calendar:', response);
-        return [];
+            if (pageToken) params.set('pageToken', pageToken);
+
+            const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`;
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${session.provider_token}` }
+            });
+
+            if (!response.ok) {
+                console.error('[REPORT] Error Google Calendar:', response);
+                return { events: [], reason: 'error' };
+            }
+
+            const json = await response.json();
+            const items = json.items || [];
+
+            items.forEach(ev => {
+                const startDate = ev.start?.dateTime
+                    ? new Date(ev.start.dateTime)
+                    : (ev.start?.date ? new Date(`${ev.start.date}T00:00:00`) : null);
+                const endDate = ev.end?.dateTime
+                    ? new Date(ev.end.dateTime)
+                    : (ev.end?.date ? new Date(`${ev.end.date}T00:00:00`) : null);
+
+                if (!startDate || !endDate) return;
+
+                const hours = (endDate - startDate) / 3600000;
+
+                events.push({
+                    source: 'google',
+                    googleEventId: ev.id,
+                    start: startDate,
+                    end: endDate,
+                    year: startDate.getFullYear(),
+                    month: pad2(startDate.getMonth() + 1),
+                    day: pad2(startDate.getDate()),
+                    startTime: formatTime(startDate),
+                    endTime: formatTime(endDate),
+                    hours,
+                    requester: '-'.toString(),
+                    client: '-'.toString(),
+                    owner: '-'.toString(),
+                    tipo: '-'.toString(),
+                    causa: '-'.toString(),
+                    activity: ev.summary || '(Sin título)',
+                    details: ev.description || ev.location || '-',
+                    summaryKey: normalizeSummary(ev.summary || '')
+                });
+            });
+
+            pageToken = json.nextPageToken || null;
+        } while (pageToken);
+    } catch (error) {
+        console.error('[REPORT] Error Google Calendar:', error);
+        return { events: [], reason: 'error' };
     }
 
-    const json = await response.json();
-    const items = json.items || [];
-
-    return items
-        .filter(ev => ev.start?.dateTime && ev.end?.dateTime)
-        .map(ev => {
-            const startDate = new Date(ev.start.dateTime);
-            const endDate = new Date(ev.end.dateTime);
-            const hours = (endDate - startDate) / 3600000;
-            return {
-                source: 'google',
-                googleEventId: ev.id,
-                start: startDate,
-                end: endDate,
-                year: startDate.getFullYear(),
-                month: pad2(startDate.getMonth() + 1),
-                day: pad2(startDate.getDate()),
-                startTime: formatTime(startDate),
-                endTime: formatTime(endDate),
-                hours,
-                requester: '-'.toString(),
-                client: '-'.toString(),
-                owner: '-'.toString(),
-                tipo: '-'.toString(),
-                causa: '-'.toString(),
-                activity: ev.summary || '(Sin título)',
-                details: ev.description || ev.location || '-',
-                summaryKey: normalizeSummary(ev.summary || '')
-            };
-        });
+    return { events, reason: null };
 }
 
 function mergeActivities(localActivities, googleEvents) {
