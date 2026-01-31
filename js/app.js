@@ -92,15 +92,54 @@ async function initApp() {
 // CARGA DE CONTEXTO
 async function loadFullContext(userId) {
     // 1. Cargar Usuario y su Perfil
-    let { data: usuario, error } = await supabase
-        .from('pr_usuarios')
-        .select(`
+    const baseSelect = `
             *,
             pr_sis_perfiles!id_perfil_defecto ( nombre_perfil ),
             pr_organizaciones!id_organizacion_principal ( nombre_comercial, es_interna )
-        `)
+        `;
+
+    let usuario = null;
+    let error = null;
+
+    // Estrategia 1: id_usuario directo
+    const r1 = await supabase
+        .from('pr_usuarios')
+        .select(baseSelect)
         .eq('id_usuario', userId)
-        .single();
+        .maybeSingle();
+
+    if (!r1.error && r1.data) {
+        usuario = r1.data;
+    } else {
+        // Estrategia 2: por email de la sesión
+        const email = State.user?.email;
+        if (email) {
+            const r2 = await supabase
+                .from('pr_usuarios')
+                .select(baseSelect)
+                .eq('email', email)
+                .maybeSingle();
+
+            if (!r2.error && r2.data) {
+                usuario = r2.data;
+            } else {
+                // Estrategia 3: por auth_user_id (si existe columna)
+                const r3 = await supabase
+                    .from('pr_usuarios')
+                    .select(baseSelect)
+                    .eq('auth_user_id', userId)
+                    .maybeSingle();
+
+                if (!r3.error && r3.data) {
+                    usuario = r3.data;
+                } else {
+                    error = r3.error || r2.error || r1.error;
+                }
+            }
+        } else {
+            error = r1.error;
+        }
+    }
 
     if (error || !usuario) throw new Error("No se pudo cargar el usuario.");
     
