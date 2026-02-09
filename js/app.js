@@ -71,6 +71,9 @@ async function initApp() {
         setupNavigation();
         setupUI();
 
+        // Pantalla inicial por defecto
+        Router.navigate('PAN_DASHBOARD');
+
         // Actualizar marca de agua con la versión
         const versionElement = document.getElementById('app-version');
         if (versionElement) {
