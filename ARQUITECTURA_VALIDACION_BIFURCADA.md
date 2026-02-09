@@ -9,7 +9,7 @@ Un cliente puede ver tickets de proyectos que no son suyos. Esto es un problema 
 
 ## Solución: Dos Pantallas Diferentes
 
-### 1. **PAN_VALIDACION_CLIENTE** (Para clientes)
+### 1. **PAN_VALIDACION_SOP** (Para clientes)
 - **Quién:** Usuarios nivel 1 (clientes/solicitantes)
 - **Qué ve:** Solo tickets que ÉL solicitó
 - **Funcionalidad:** Validar/rechazar solo sus propios tickets
@@ -34,7 +34,7 @@ En `pr_sis_pantallas`, agregar:
 ```sql
 INSERT INTO pr_sis_pantallas (codigo_pantalla, nombre_pantalla, ruta_archivo, descripcion)
 VALUES 
-  ('PAN_VALIDACION_CLIENTE', 'Validación de Mis Tickets', 'ticketValidation.js', 'Cliente valida sus propios tickets'),
+  ('PAN_VALIDACION_SOP', 'Validación de Mis Tickets', 'ticketValidation.js', 'Cliente valida sus propios tickets'),
   ('PAN_VALIDACION_DIRECTIVO', 'Validación General (Directivo)', 'ticketValidationDirective.js', 'Directivo valida todos los tickets');
 ```
 
@@ -53,7 +53,7 @@ CROSS JOIN pr_sis_menus m
 CROSS JOIN pr_sis_pantallas pan
 WHERE p.nombre_perfil = 'Cliente'
   AND m.codigo_menu = 'SOPORTE'
-  AND pan.codigo_pantalla = 'PAN_VALIDACION_CLIENTE';
+  AND pan.codigo_pantalla = 'PAN_VALIDACION_SOP';
 
 -- PARA DIRECTIVOS (Perfil = Administrador, Nivel 3)
 INSERT INTO pr_sis_permisos_arbol (id_perfil, id_menu, id_pantalla, nivel_acceso)

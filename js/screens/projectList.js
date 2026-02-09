@@ -1090,7 +1090,7 @@ function setupEvents() {
     });
     
     document.getElementById('btnViewRoadmap').addEventListener('click', () => {
-        alert('Vista de Roadmap Estratégico - Próximamente');
+        Router.navigate('PAN_REP_PROYECTOS');
     });
     
     const modal = document.getElementById('modalProject');

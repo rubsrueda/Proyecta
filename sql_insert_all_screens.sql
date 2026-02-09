@@ -23,6 +23,7 @@ INSERT INTO pr_sis_pantallas (codigo_pantalla, clave_nombre, ruta_archivo) VALUE
 ('PAN_TICKET_ALTA', 'Crear Ticket', 'ticketCreate.js'),
 ('PAN_MESA_AYUDA', 'Mesa de Control', 'ticketDispatcher.js'),
 ('PAN_VALIDACION_SOP', 'Validación de Soporte', 'ticketValidation.js'),
+('PAN_VALIDACION_DIRECTIVO', 'Validación General - Directivo', 'ticketValidationDirective.js'),
 ('PAN_INBOX_GMAIL', 'Bandeja de Entrada', 'inboxGmail.js')
 ON CONFLICT(codigo_pantalla) DO NOTHING;
 

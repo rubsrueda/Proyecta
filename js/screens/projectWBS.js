@@ -182,8 +182,9 @@ function setupEvents(project) {
     // Volver
     document.getElementById('btnBackList').onclick = () => Router.navigate('PAN_PROY_LIST');
     
-    // Gantt (Placeholder)
-    document.getElementById('btnGantt').onclick = () => alert("Gantt próximamente");
+    document.getElementById('btnGantt').onclick = () => {
+        Router.navigate('PAN_PROY_GANTT', { projectId: currentProjectId });
+    };
 
     // Modal Tarea
     const modal = document.getElementById('modalTask');

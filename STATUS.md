@@ -30,6 +30,15 @@
 
 ## 🚀 Próximos Pasos (Debes Hacer Esto)
 
+### 0️⃣ Confirmar catálogo y permisos de la pantalla Directivo
+
+Antes de probar, asegúrate que existan los permisos:
+
+- Pantalla: `PAN_VALIDACION_DIRECTIVO` en `pr_sis_pantallas`
+- Permisos: registro en `pr_sis_permisos_arbol` para perfil Administrador (nivel 3)
+
+Guía completa: [INSTALACION_VALIDACION_DIRECTIVO.md](INSTALACION_VALIDACION_DIRECTIVO.md)
+
 ### 1️⃣ Abre la herramienta de Debugging
 
 **En producción:**

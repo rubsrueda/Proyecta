@@ -108,9 +108,8 @@ export async function render(container) {
         Router.navigate('PAN_SEG_MATRIX'); // AHORA SÍ NAVEGA
     };
 
-    // 4. Catálogos -> (Placeholder por ahora, iremos a catalogs.js luego)
+    // 4. Catálogos -> Abre catalogs.js
     document.getElementById('btnGoCatalogs').onclick = () => {
-        // Router.navigate('PAN_CATALOGOS'); // Descomentar cuando exista el archivo
-        alert("Próximamente: Edición de listas desplegables y diccionarios");
+        Router.navigate('PAN_CATALOGOS');
     };
 }

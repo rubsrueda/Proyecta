@@ -340,25 +340,25 @@ css/layout.css	✅ Existe	Grid principal y responsividad móvil (Sidebar oculto)
 js/config.js	✅ Existe	Credenciales Supabase y constantes globales (SYSTEM_CONFIG).
 js/app.js	⚠️ Modificar	Bootstrapper: Inicia sesión, carga perfil y llama al Router (ya no tendrá switch).
         
-2. NÚCLEO DEL SISTEMA (/js/core) - NUEVO		
-        
+2. NÚCLEO DEL SISTEMA (/js/core)		
+		
 El cerebro lógico. Aquí residen las reglas de negocio abstractas.		
 Archivo	Estado Actual	Función / Responsabilidad
-state.js	❌ Crear	Memoria Global: Almacena quién soy, mi Org, mi Perfil y mis Permisos para acceso rápido.
-router.js	❌ Crear	Enrutador Dinámico: Lee la tabla pr_sis_pantallas, busca el archivo .js correspondiente y ejecuta su función render().
-security.js	❌ Crear	Validador: Contiene funciones como canEdit(), canDelete() basadas en los Niveles 1, 2, 3.
-utils.js	❌ Crear	Herramientas comunes: Formateo de fechas, moneda, validadores de email.
+state.js	✅ Existe	Memoria Global: Almacena quién soy, mi Org, mi Perfil y mis Permisos para acceso rápido.
+router.js	✅ Existe	Enrutador Dinámico: Lee la tabla pr_sis_pantallas, busca el archivo .js correspondiente y ejecuta su función render().
+security.js	✅ Existe	Validador: Contiene funciones como canEdit(), canDelete() basadas en los Niveles 1, 2, 3.
+utils.js	✅ Existe	Herramientas comunes: Formateo de fechas, moneda, validadores de email.
         
 3. SERVICIOS DE DATOS (/js/services)		
-        
+		
 La capa de conexión. Hablan con Supabase o APIs externas.		
 Archivo	Estado Actual	Función / Responsabilidad
-authService.js	🔄 Renombrar	(Antes auth/login.js) Maneja Login, Logout y validación SOX.
+auth/login.js	✅ Existe	Login/Logout Google (aun no consolidado en authService.js).
 menuService.js	✅ Existe	Construye el HTML del Sidebar leyendo permisos.
 i18nService.js	✅ Existe	Descarga y aplica el diccionario de idiomas.
 gmailService.js	✅ Existe	Conecta con API Gmail (Leer y Marcar leídos).
 calendarService.js	✅ Existe	Sincroniza eventos de Google Calendar hacia pr_actividades.
-financeService.js	❌ Crear	Cálculos de dinero: Busca tarifas, valida contratos y saldos.
+financeService.js	✅ Existe	Cálculos de dinero: Busca tarifas, valida contratos y saldos.
 projectService.js	❌ Crear	Cálculos de proyectos: Avance %, Rutas críticas, Dependencias.
         
 4. PANTALLAS (/js/screens)		
@@ -382,6 +382,7 @@ ticketDetail.js	PAN_TICKET_DETALLE	(Existe) Chat, tiempos y gestión del ticket.
 ticketCreate.js	PAN_TICKET_ALTA	Formulario aislado para crear tickets nuevos.
 ticketDispatcher.js	PAN_MESA_AYUDA	Pantalla Drag&Drop para asignar tickets huérfanos.
 ticketValidation.js	PAN_VALIDACION_SOP	Pantalla para el Cliente: Aprobar/Rechazar solución.
+ticketValidationDirective.js	PAN_VALIDACION_DIRECTIVO	Pantalla Directivo: Validación general y auditoría.
 messages.js	(Sin código BD)	Bandeja de entrada Gmail (Pre-Ticket).
 4.4. Módulo Proyectos (Animal B)		
 Archivo	Código BD	Función
